@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BlackmagicDesign>
+    <Plugin>
+        <Id>com.editormaster.premium.v1</Id>
+        <Name>Editor Master Premium</Name>
+        <Version>1.2.0</Version>
+        <Description>Editor Master Premium for DaVinci Resolve</Description>
+        <FilePath>main.js</FilePath>
+    </Plugin>
+</BlackmagicDesign>

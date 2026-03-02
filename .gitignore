@@ -1,0 +1,12 @@
+# Ignore test and diagnostic scripts
+*.py
+test_download_robust.js
+*.mp4
+*.bak
+*.tmp
+temp_video.mp4
+log_tauri_bundle.txt
+log_build_v2.txt
+BUILDER.js
+build_v2.bat
+.debug

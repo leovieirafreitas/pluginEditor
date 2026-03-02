@@ -106,7 +106,7 @@ function setupEvents() {
 
     searchInput.addEventListener('input', () => {
         clearTimeout(searchTimer);
-        searchTimer = setTimeout(triggerSearch, 300);
+        searchTimer = setTimeout(triggerSearch, 800); // Aumentado para 800ms para evitar sobrecarga enquanto digita
     });
 
     searchInput.addEventListener('keydown', (e) => {
@@ -257,7 +257,26 @@ async function fetchClipMovies(query, year = '') {
         return;
     }
 
-    body.innerHTML = '<div class="state-box" style="margin-top:48px"><div class="spinner"></div><p>Buscando filmes...</p></div>';
+    body.innerHTML = `
+        <div class="state-box" style="margin-top:48px" id="searchProgress">
+            <div class="spinner"></div>
+            <p id="searchText">Buscando filmes...</p>
+        </div>`;
+
+    const progressTimer = setTimeout(() => {
+        const text = document.getElementById('searchText');
+        if (text) text.innerHTML = '<span style="color:#ffcc00">API processando busca de 1500 resultados... aguarde.</span>';
+    }, 4500);
+
+    const retryTimer = setTimeout(() => {
+        const wrap = document.getElementById('searchProgress');
+        if (wrap) {
+            wrap.innerHTML = `
+                <p style="color:#ffcc00">O servidor da Clip.Cafe está muito instável hoje.</p>
+                <button class="clip-movie-btn" onclick="triggerSearch()" style="margin: 10px auto; padding: 6px 15px; background: rgba(255,255,255,0.1)">Tentar novamente</button>
+            `;
+        }
+    }, 28000);
 
     // Abort previous search
     if (clipSearchAbort) clipSearchAbort.abort();
@@ -270,15 +289,24 @@ async function fetchClipMovies(query, year = '') {
     }
 
     try {
-        const size = (query && query.length > 2) ? 1500 : 500;
+        console.time('BuscaFilmes');
+        // VOLTANDO AO NORMAL: Busca profunda para encontrar todos os filmes da franquia
+        const size = (query && query.length > 1) ? 1500 : 500;
         let url = `https://api.clip.cafe/?api_key=${CLIPCAFE_KEY}&size=${size}`;
         if (query) url += `&movie_title=${encodeURIComponent(query)}`;
         if (year) url += `&movie_year=${year}`;
 
+        // Timeout estendido para 35s pois voltamos ao padrão de 1500 resultados
+        const timeoutId = setTimeout(() => clipSearchAbort.abort(), 35000);
+
         const res = await fetch(url, { signal: clipSearchAbort.signal });
+        clearTimeout(timeoutId);
+        clearTimeout(progressTimer);
+        clearTimeout(retryTimer);
+
         if (!res.ok) {
-            if (res.status === 429) throw new Error("Muitas buscas. Aguarde.");
-            throw new Error(`Erro API: ${res.status}`);
+            if (res.status === 429) throw new Error("Limite de busca atingido (API Rate Limit). Aguarde 1 minuto.");
+            throw new Error(`Servidor da Clip.Cafe está lento ou fora do ar (${res.status})`);
         }
         const data = await res.json();
         const hits = data?.hits?.hits || [];
@@ -389,10 +417,13 @@ async function openClipMovie(movie) {
       <div class="state-box" style="margin-top:100px"><div class="spinner"></div><p>Carregando todas as cenas...</p></div>
     </div>`;
 
-    // Fetch ALL scenes for this specific movie slug (limit 300 to be safe but exhaustive)
+    // Fetch ALL scenes for this specific movie slug (STRICT LIMIT for scene fetch)
     try {
         const url = `https://api.clip.cafe/?api_key=${CLIPCAFE_KEY}&size=300&movie_slug=${movie.slug}`;
-        const res = await fetch(url);
+        // Adiciona headers de navegador para evitar 403 na busca de cenas
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' }
+        });
         if (res.ok) {
             const data = await res.json();
             const hits = data?.hits?.hits || [];
@@ -610,7 +641,7 @@ async function openClipPreviewLocal(videoUrl, title) {
         // Apaga arquivo temporário
         if (window._clipPreviewTempFile) {
             try {
-                const fs = require('fs');
+                const fs = window.require('fs');
                 fs.unlink(window._clipPreviewTempFile, () => { });
             } catch (e) { }
             window._clipPreviewTempFile = null;
@@ -618,13 +649,15 @@ async function openClipPreviewLocal(videoUrl, title) {
     }
 
     try {
-        const path = require('path');
-        const os = require('os');
-        const fs = require('fs');
+        const path = window.require('path');
+        const os = window.require('os');
+        const fs = window.require('fs');
 
-        const tmpFile = path.join(os.tmpdir(), `clip_preview_${Date.now()}.mp4`);
+        const randomId = Math.random().toString(36).substring(2, 8);
+        const tmpFile = path.join(os.tmpdir(), `clip_pre_${Date.now()}_${randomId}.mp4`);
         window._clipPreviewTempFile = tmpFile;
 
+        console.log('[Preview] Baixando:', videoUrl);
         await downloadFileNode(videoUrl, tmpFile);
 
         // Confirma que o arquivo existe e tem tamanho
@@ -658,42 +691,52 @@ async function openClipPreviewLocal(videoUrl, title) {
 
 async function downloadFileNode(url, dest, _attempt) {
     const attempt = _attempt || 1;
-    const MAX_ATTEMPTS = 3;
-    const fs = require('fs');
-    const https = require('https');
-    const http = require('http');
-    const { URL } = require('url');
+    const MAX_ATTEMPTS = 5; // Aumentado para 5 tentativas
+    const fs = window.require('fs');
+    const https = window.require('https');
+    const http = window.require('http');
+    const { URL } = window.require('url');
 
     return new Promise((resolve, reject) => {
+        let finished = false;
         const parsedUrl = new URL(url);
         const protocol = parsedUrl.protocol === 'https:' ? https : http;
 
         const options = {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
                 'Accept': '*/*',
-                'Accept-Encoding': 'identity',
-                'Referer': 'https://clip.cafe/',
-                'Origin': 'https://clip.cafe'
+                'Connection': 'keep-alive'
             },
-            timeout: 60000
+            timeout: 30000
         };
 
-        // Remove arquivo de tentativa anterior se existir
-        try { if (fs.existsSync(dest)) fs.unlinkSync(dest); } catch (e) { }
+        // Remove arquivo apenas na primeira tentativa
+        if (attempt === 1) {
+            try { if (fs.existsSync(dest)) fs.unlinkSync(dest); } catch (e) { }
+        }
 
         const request = protocol.get(url, options, (response) => {
-            if (response.statusCode === 301 || response.statusCode === 302) {
-                downloadFileNode(response.headers.location, dest, attempt).then(resolve).catch(reject);
+            if (finished) return;
+
+            // Suporte a Redirecionamentos (301, 302, 307, 308)
+            if ([301, 302, 307, 308].includes(response.statusCode)) {
+                response.resume(); // Consome para liberar socket
+                const nextUrl = response.headers.location;
+                if (!nextUrl || attempt >= MAX_ATTEMPTS) {
+                    finished = true;
+                    reject(new Error(attempt >= MAX_ATTEMPTS ? 'Excesso de redirecionamentos' : 'URL de redirecionamento não encontrada'));
+                    return;
+                }
+                downloadFileNode(nextUrl, dest, attempt + 1).then(resolve).catch(reject);
+                finished = true;
                 return;
             }
 
             if (response.statusCode !== 200) {
-                if (response.statusCode === 403) {
-                    reject(new Error(`Acesso Negado (403) pela Clip.Cafe. Tente novamente em instantes.`));
-                } else {
-                    reject(new Error(`Erro HTTP: ${response.statusCode}`));
-                }
+                response.resume();
+                finished = true;
+                reject(new Error(`Erro HTTP ${response.statusCode}`));
                 return;
             }
 
@@ -701,46 +744,48 @@ async function downloadFileNode(url, dest, _attempt) {
             response.pipe(file);
 
             response.on('error', (err) => {
+                if (finished) return;
                 file.destroy();
-                fs.unlink(dest, () => { });
-                // Retry on connection reset
-                if ((err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') && attempt < MAX_ATTEMPTS) {
-                    console.log(`[Download] Retry ${attempt}/${MAX_ATTEMPTS} por ${err.code}...`);
-                    setTimeout(() => downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject), 2000);
+                if (attempt < MAX_ATTEMPTS) {
+                    setTimeout(() => downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject), 1000);
                 } else {
                     reject(err);
                 }
+                finished = true;
             });
 
             file.on('finish', () => { file.close(); });
-
             file.on('close', () => {
-                setTimeout(resolve, 2000);
+                if (finished) return;
+                finished = true;
+                resolve();
             });
-
             file.on('error', (err) => {
-                fs.unlink(dest, () => { });
+                if (finished) return;
                 reject(err);
+                finished = true;
             });
         });
 
         request.on('error', (err) => {
-            // Retry on ECONNRESET/ETIMEDOUT network errors
-            if ((err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED') && attempt < MAX_ATTEMPTS) {
-                console.log(`[Download] Retry ${attempt}/${MAX_ATTEMPTS} por ${err.code}...`);
-                setTimeout(() => downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject), 2000);
+            if (finished) return;
+            if (attempt < MAX_ATTEMPTS) {
+                setTimeout(() => downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject), 1000);
             } else {
                 reject(err);
             }
+            finished = true;
         });
 
-        request.setTimeout(90000, () => {
+        request.setTimeout(45000, () => {
             request.destroy();
+            if (finished) return;
             if (attempt < MAX_ATTEMPTS) {
                 setTimeout(() => downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject), 2000);
             } else {
-                reject(new Error('Timeout de conexão (90s)'));
+                reject(new Error('Timeout persistente no download'));
             }
+            finished = true;
         });
     });
 }
@@ -750,15 +795,16 @@ async function importClipCafeVideo(videoUrl, title, btn) {
     showToast('⬇ Baixando cena...', 'info');
 
     try {
-        const fs = require('fs');
-        const path = require('path');
-        const os = require('os');
+        const fs = window.require('fs');
+        const path = window.require('path');
+        const os = window.require('os');
 
         const libPath = path.join(os.homedir(), 'Documents', 'EditorMaster_Library', 'Filmes');
         if (!fs.existsSync(libPath)) { try { fs.mkdirSync(libPath, { recursive: true }); } catch (e) { } }
 
-        const safeTitle = title.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 60);
-        const finalPath = path.join(libPath, `${safeTitle}_${Date.now()}.mp4`);
+        const safeTitle = title.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50);
+        const randomId = Math.random().toString(36).substring(2, 7);
+        const finalPath = path.join(libPath, `${safeTitle}_${Date.now()}_${randomId}.mp4`);
 
         await downloadFileNode(videoUrl, finalPath);
 
@@ -1585,9 +1631,9 @@ async function importAudio(url, title, btn) {
     showToast(`Baixando ${subFolder}...`, 'info');
 
     try {
-        const fs = require('fs');
-        const path = require('path');
-        const os = require('os');
+        const fs = window.require('fs');
+        const path = window.require('path');
+        const os = window.require('os');
 
         const libPath = path.join(os.homedir(), 'Documents', 'EditorMaster_Library', subFolder);
         if (!fs.existsSync(libPath)) { try { fs.mkdirSync(libPath, { recursive: true }); } catch (e) { } }
