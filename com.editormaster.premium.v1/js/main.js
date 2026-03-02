@@ -270,7 +270,7 @@ async function fetchClipMovies(query, year = '') {
     }
 
     try {
-        const size = (query && query.length > 2) ? 1200 : 500;
+        const size = (query && query.length > 2) ? 1500 : 500;
         let url = `https://api.clip.cafe/?api_key=${CLIPCAFE_KEY}&size=${size}`;
         if (query) url += `&movie_title=${encodeURIComponent(query)}`;
         if (year) url += `&movie_year=${year}`;
@@ -379,10 +379,45 @@ function renderMovieGrid() {
     body.appendChild(grid);
 }
 
-function openClipMovie(movie) {
+async function openClipMovie(movie) {
     clipSelectedMovie = movie;
-    // VERY IMPORTANT: Target 'videosContent' so we don't destroy the other tab panes!
     const area = document.getElementById('videosContent');
+
+    // Show a loading state inside the detail view first
+    area.innerHTML = `
+    <div id="clipcafeWrap" class="detail-mode">
+      <div class="state-box" style="margin-top:100px"><div class="spinner"></div><p>Carregando todas as cenas...</p></div>
+    </div>`;
+
+    // Fetch ALL scenes for this specific movie slug (limit 300 to be safe but exhaustive)
+    try {
+        const url = `https://api.clip.cafe/?api_key=${CLIPCAFE_KEY}&size=300&movie_slug=${movie.slug}`;
+        const res = await fetch(url);
+        if (res.ok) {
+            const data = await res.json();
+            const hits = data?.hits?.hits || [];
+            if (hits.length > 0) {
+                const seen = new Set();
+                const freshClips = [];
+                for (const h of hits) {
+                    const s = h._source;
+                    // STRICT FILTER: Ensure the slug matches exactly to avoid mixed movies
+                    if (s.movie_slug !== movie.slug) continue;
+
+                    const clipId = s.clipID || s.id || Math.random();
+                    if (seen.has(clipId)) continue;
+                    seen.add(clipId);
+                    freshClips.push({ ...s, downloadUrl: s.download });
+                }
+
+                if (freshClips.length > 0) {
+                    movie.clips = freshClips.sort((a, b) => (a.clipID || 0) - (b.clipID || 0));
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Erro ao buscar cenas extras:", err);
+    }
 
     // Hide global year selector when inside a movie
     const yearSel = document.getElementById('clipcafeYear');
@@ -408,6 +443,8 @@ function openClipMovie(movie) {
       <div id="clipDetailGrid" class="clip-detail-grid"></div>
       <div id="clipLoadMoreArea" class="load-more-container"></div>
     </div>`;
+
+    renderClipGridPaginated(movie, 0);
 
     document.getElementById('clipBackBtn').addEventListener('click', (e) => {
         e.preventDefault();
