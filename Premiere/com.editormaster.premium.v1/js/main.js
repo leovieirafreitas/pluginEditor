@@ -694,7 +694,7 @@ async function downloadFileNode(url, dest, _attempt) {
     const { URL } = require('url');
 
     return new Promise((resolve, reject) => {
-        let finished = false;
+        let isDone = false;
         const parsedUrl = new URL(url);
         const protocol = parsedUrl.protocol === 'https:' ? https : http;
 
@@ -707,81 +707,92 @@ async function downloadFileNode(url, dest, _attempt) {
             timeout: 30000
         };
 
-        // Remove arquivo apenas na primeira tentativa
-        if (attempt === 1) {
-            try { if (fs.existsSync(dest)) fs.unlinkSync(dest); } catch (e) { }
+        // Remove arquivo apenas na primeira tentativa de um download novo
+        if (attempt === 1 && fs.existsSync(dest)) {
+            try { fs.unlinkSync(dest); } catch (e) { }
         }
 
-        const request = protocol.get(url, options, (response) => {
-            if (finished) return;
+        const req = protocol.get(url, options, (res) => {
+            if (isDone) return;
 
             // Suporte a Redirecionamentos (301, 302, 307, 308)
-            if ([301, 302, 307, 308].includes(response.statusCode)) {
-                response.resume(); // Consome para liberar socket
-                const nextUrl = response.headers.location;
+            if ([301, 302, 307, 308].includes(res.statusCode)) {
+                res.resume(); // Consome para liberar socket
+                const nextUrl = res.headers.location;
                 if (!nextUrl || attempt >= MAX_ATTEMPTS) {
-                    finished = true;
+                    isDone = true;
                     reject(new Error(attempt >= MAX_ATTEMPTS ? 'Excesso de redirecionamentos' : 'URL de redirecionamento inválida'));
                     return;
                 }
                 downloadFileNode(nextUrl, dest, attempt + 1).then(resolve).catch(reject);
-                finished = true;
+                isDone = true;
                 return;
             }
 
-            if (response.statusCode !== 200) {
-                response.resume();
-                finished = true;
-                reject(new Error(`Erro HTTP ${response.statusCode}`));
+            if (res.statusCode !== 200) {
+                res.resume();
+                isDone = true;
+                reject(new Error(`Erro HTTP ${res.statusCode}`));
                 return;
             }
 
-            const file = fs.createWriteStream(dest);
-            response.pipe(file);
+            const fileStream = fs.createWriteStream(dest);
+            res.pipe(fileStream);
 
-            response.on('error', (err) => {
-                if (finished) return;
-                file.destroy();
+            let lastDataTime = Date.now();
+            const watchdog = setInterval(() => {
+                if (Date.now() - lastDataTime > 20000) { // 20s sem novos dados = download travado
+                    isDone = true;
+                    clearInterval(watchdog);
+                    req.destroy();
+                    fileStream.destroy();
+                    if (attempt < MAX_ATTEMPTS) {
+                        console.log('[Download] Inativo. Reiniciando tentativa...');
+                        downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject);
+                    } else {
+                        reject(new Error('Download cancelado por inatividade do servidor'));
+                    }
+                }
+            }, 5000);
+
+            res.on('data', () => { lastDataTime = Date.now(); });
+
+            fileStream.on('finish', () => { fileStream.close(); });
+            fileStream.on('close', () => {
+                if (isDone) return;
+                isDone = true;
+                clearInterval(watchdog);
+                resolve();
+            });
+
+            const handleError = (err) => {
+                if (isDone) return;
+                isDone = true;
+                clearInterval(watchdog);
+                fileStream.destroy();
                 if (attempt < MAX_ATTEMPTS) {
-                    setTimeout(() => downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject), 1000);
+                    setTimeout(() => downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject), 1500);
                 } else {
                     reject(err);
                 }
-                finished = true;
-            });
+            };
 
-            file.on('finish', () => { file.close(); });
-            file.on('close', () => {
-                if (finished) return;
-                finished = true;
-                resolve();
-            });
-            file.on('error', (err) => {
-                if (finished) return;
-                reject(err);
-                finished = true;
-            });
+            res.on('error', handleError);
+            fileStream.on('error', handleError);
         });
 
-        request.on('error', (err) => {
-            if (finished) return;
+        req.on('error', (err) => {
+            if (isDone) return;
+            isDone = true;
             if (attempt < MAX_ATTEMPTS) {
-                setTimeout(() => downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject), 1000);
+                setTimeout(() => downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject), 1500);
             } else {
                 reject(err);
             }
-            finished = true;
         });
 
-        request.setTimeout(45000, () => {
-            request.destroy();
-            if (finished) return;
-            if (attempt < MAX_ATTEMPTS) {
-                setTimeout(() => downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject), 2000);
-            } else {
-                reject(new Error('Timeout persistente no download'));
-            }
-            finished = true;
+        req.setTimeout(40000, () => {
+            req.destroy();
         });
     });
 }
