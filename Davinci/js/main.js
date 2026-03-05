@@ -1,4 +1,4 @@
-const APP_VERSION = '1.2.0';
+﻿const APP_VERSION = '1.2.0';
 
 const API_BASE = 'https://biblioteca-de-cenas.onrender.com/api';
 const SUPABASE_URL = 'https://rposggtfnmqorgjtzpdw.supabase.co';
@@ -64,7 +64,7 @@ let activePlayBtn = null;
 // INIT
 // ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    csInterface = new CSInterface();
+    // csInterface = new CSInterface(); // Removido para DaVinci
     setupEvents();
     buildSfxMainCatBar();
     buildMusicMainCatBar();
@@ -77,13 +77,37 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMusic();  // Initial fetch for Music
 });
 
-function populateClipYears() {
+async function populateClipYears() {
     const sel = document.getElementById('clipcafeYear');
     if (!sel) return;
-    let html = '<option value="">Todos os anos</option>';
-    for (let y = 2025; y >= 1980; y--) html += `<option value="${y}">${y}</option>`;
-    sel.innerHTML = html;
+
+    sel.innerHTML = '<option value="">Todos os anos</option>';
     sel.addEventListener('change', () => fetchClipMovies(document.getElementById('searchInput').value, sel.value));
+
+    try {
+        // Busca anos diretamente da view_filmes_unicos
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/view_filmes_unicos?select=ano&order=ano.desc`,
+            {
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                }
+            }
+        );
+        if (!res.ok) return;
+        const rows = await res.json();
+
+        // Extrai anos únicos
+        const years = [...new Set(rows.map(r => r.ano).filter(Boolean))]
+            .sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true }));
+
+        let html = '<option value="">Todos os anos</option>';
+        for (const y of years) html += `<option value="${y}">${y}</option>`;
+        sel.innerHTML = html;
+    } catch (e) {
+        console.error('Erro ao buscar anos:', e);
+    }
 }
 
 function triggerSearch() {
@@ -218,16 +242,17 @@ async function fetchApi(endpoint) {
 }
 
 // ─────────────────────────────────────────────────
-// CLIPCAFE — CORTES DE FILMES
+// SUPABASE — CORTES DE FILMES
 // ─────────────────────────────────────────────────
-const CLIPCAFE_KEY = 'f68263120929edd8417b0c0ed91535a5';
-let clipMovies = [];         // grouped movies
-let clipSelectedMovie = null; // currently expanded movie
+let clipMovies = [];
+let clipSelectedMovie = null;
+let clipSearchAbort = null;
+const clipCache = new Map();
+let CLIP_PAGE_SIZE = 12;
 
 async function loadVideos() {
     renderClipCafe();
-    // Re-fetch trending or recent for initial view (reduced size for speed)
-    fetchClipMovies('', '2025');
+    fetchClipMovies('', '');
 }
 
 function renderClipCafe() {
@@ -243,83 +268,50 @@ function renderClipCafe() {
     </div>`;
 }
 
-let clipSearchAbort = null;
-const clipCache = new Map();
-
-async function fetchClipMovies(query, year = '') {
+async function fetchClipMovies(query, year) {
     const body = document.getElementById('clipcafeBody');
-    if (!body) {
-        renderClipCafe();
-        return fetchClipMovies(query, year);
-    }
-    if (!query && !year) {
-        body.innerHTML = '<div class="state-box" style="margin-top:48px"><p>Busque um filme no topo</p></div>';
-        return;
-    }
+    if (!body) { renderClipCafe(); return fetchClipMovies(query, year); }
 
-    body.innerHTML = `
-        <div class="state-box" style="margin-top:48px" id="searchProgress">
-            <div class="spinner"></div>
-            <p id="searchText">Buscando filmes...</p>
-        </div>`;
+    body.innerHTML = `<div class="state-box" style="margin-top:48px"><div class="spinner"></div><p>Buscando filmes...</p></div>`;
 
-    const progressTimer = setTimeout(() => {
-        const text = document.getElementById('searchText');
-        if (text) text.innerHTML = '<span style="color:#ffcc00">API processando busca de 1500 resultados... aguarde.</span>';
-    }, 4500);
-
-    const retryTimer = setTimeout(() => {
-        const wrap = document.getElementById('searchProgress');
-        if (wrap) {
-            wrap.innerHTML = `
-                <p style="color:#ffcc00">O servidor da Clip.Cafe está muito instável hoje.</p>
-                <button class="clip-movie-btn" onclick="triggerSearch()" style="margin: 10px auto; padding: 6px 15px; background: rgba(255,255,255,0.1)">Tentar novamente</button>
-            `;
-        }
-    }, 28000);
-
-    // Abort previous search
     if (clipSearchAbort) clipSearchAbort.abort();
     clipSearchAbort = new AbortController();
 
     const cacheKey = `${query}_${year}`;
     if (clipCache.has(cacheKey)) {
-        displayClipMovies(clipCache.get(cacheKey), query);
+        displayClipMovies(clipCache.get(cacheKey));
         return;
     }
 
     try {
-        console.time('BuscaFilmes');
-        // VOLTANDO AO NORMAL: Busca profunda para encontrar todos os filmes da franquia
-        const size = (query && query.length > 1) ? 1500 : 500;
-        let url = `https://api.clip.cafe/?api_key=${CLIPCAFE_KEY}&size=${size}`;
-        if (query) url += `&movie_title=${encodeURIComponent(query)}`;
-        if (year) url += `&movie_year=${year}`;
+        // Busca filmes únicos da view_filmes_unicos (já agrupados, sem duplicatas)
+        let url = `${SUPABASE_URL}/rest/v1/view_filmes_unicos?select=filme_slug,filme_nome,ano,capa_url&order=filme_nome.asc&limit=1000`;
+        if (year) url += `&ano=eq.${encodeURIComponent(year)}`;
+        if (query) url += `&filme_nome=ilike.*${encodeURIComponent(query)}*`;
 
-        // Timeout estendido para 35s pois voltamos ao padrão de 1500 resultados
-        const timeoutId = setTimeout(() => clipSearchAbort.abort(), 35000);
+        const res = await fetch(url, {
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+            signal: clipSearchAbort.signal
+        });
+        if (!res.ok) throw new Error(`Erro Supabase ${res.status}`);
+        const rows = await res.json();
 
-        const res = await fetch(url, { signal: clipSearchAbort.signal });
-        clearTimeout(timeoutId);
-        clearTimeout(progressTimer);
-        clearTimeout(retryTimer);
-
-        if (!res.ok) {
-            if (res.status === 429) throw new Error("Limite de busca atingido (API Rate Limit). Aguarde 1 minuto.");
-            throw new Error(`Servidor da Clip.Cafe está lento ou fora do ar (${res.status})`);
-        }
-        const data = await res.json();
-        const hits = data?.hits?.hits || [];
-
-        if (!hits.length) {
-            body.innerHTML = `<div class="state-box" style="margin-top:48px"><p>Nada encontrado para "${query}"</p></div>`;
+        if (!rows.length) {
+            body.innerHTML = `<div class="state-box" style="margin-top:48px"><p>Nenhum filme encontrado${query ? ` para "${query}"` : ''}</p></div>`;
             return;
         }
 
-        // Process hits
-        const results = processClipHits(hits);
-        clipCache.set(cacheKey, results);
-        displayClipMovies(results, query);
+        // A view já retorna um filme por linha, sem duplicatas
+        const movies = rows.map(r => ({
+            slug: r.filme_slug,
+            title: r.filme_nome,
+            year: r.ano,
+            poster: r.capa_url || '',
+            clips: []
+        })).sort((a, b) => String(b.year).localeCompare(String(a.year), undefined, { numeric: true }));
+
+        clipCache.set(cacheKey, movies);
+        displayClipMovies(movies);
 
     } catch (err) {
         if (err.name === 'AbortError') return;
@@ -327,49 +319,15 @@ async function fetchClipMovies(query, year = '') {
     }
 }
 
-function processClipHits(hits) {
-    const grouped = {};
-    const seenClips = new Set();
-    for (const h of hits) {
-        const s = h._source;
-        const slug = s.movie_slug;
-        if (!slug) continue;
-
-        const clipId = s.clipID || s.id || Math.random();
-        if (seenClips.has(clipId)) continue;
-        seenClips.add(clipId);
-
-        if (!grouped[slug]) {
-            grouped[slug] = {
-                title: s.movie_title,
-                slug,
-                year: s.movie_year,
-                imdb: s.imdb,
-                poster: s.movie_poster || `https://clip.cafe/posters/300/${slug}.jpg`,
-                clips: []
-            };
-        }
-        grouped[slug].clips.push({ ...s, downloadUrl: s.download });
-    }
-
-    return Object.values(grouped)
-        .map(m => ({ ...m, clips: m.clips.sort((a, b) => (a.clipID || 0) - (b.clipID || 0)) }))
-        .sort((a, b) => b.year - a.year);
-}
-
-function displayClipMovies(movies, query) {
+function displayClipMovies(movies) {
     clipMovies = movies;
     document.getElementById('videoTabCount').textContent = movies.length;
-
-    // Ensure year select is visible if we are in video tab
     if (currentTab === 'videos') {
         const sel = document.getElementById('clipcafeYear');
         if (sel) sel.style.display = 'block';
     }
-
     renderMovieGrid();
 }
-
 
 function renderMovieGrid() {
     const body = document.getElementById('clipcafeBody');
@@ -388,12 +346,12 @@ function renderMovieGrid() {
         card.className = 'clip-movie-card';
         card.innerHTML = `
           <div class="clip-movie-poster">
-            <img src="${movie.poster}" alt="${movie.title}" loading="lazy" onerror="this.onerror=null; this.src='https://clip.cafe/posters/300/${movie.slug}.jpg'; this.nextSibling && this.nextSibling.style && (this.nextSibling.style.display='flex')"/>
+            <img src="${movie.poster}?v=${movie.slug}" alt="${movie.title}" loading="lazy" onerror="this.style.opacity='0.2'"/>
             <div class="clip-movie-year">${movie.year}</div>
           </div>
           <div class="clip-movie-info">
             <div class="clip-movie-title">${movie.title}</div>
-            <div class="clip-movie-count">${movie.clips.length} cenas</div>
+            <div class="clip-movie-count" id="count_${movie.slug}">— cenas</div>
             <button class="clip-movie-btn">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
               Ver Cenas
@@ -405,54 +363,84 @@ function renderMovieGrid() {
 
     body.innerHTML = '';
     body.appendChild(grid);
+
+    loadSceneCounts(clipMovies);
+}
+
+async function loadSceneCounts(movies) {
+    if (!movies.length) return;
+    const BATCH = 10;
+    for (let i = 0; i < movies.length; i += BATCH) {
+        const batch = movies.slice(i, i + BATCH);
+        await Promise.all(batch.map(async (movie) => {
+            // Se já buscou antes durante esta sessão (evita o plugin travar puxando infinitamente)
+            if (movie.sceneCount !== undefined) {
+                const el = document.getElementById('count_' + movie.slug);
+                if (el) el.textContent = movie.sceneCount + ' cena' + (movie.sceneCount !== 1 ? 's' : '');
+                return;
+            }
+            try {
+                const qs = 'select=id&filme_slug=eq.' + encodeURIComponent(movie.slug) + '&limit=1';
+                const res = await fetch(
+                    SUPABASE_URL + '/rest/v1/filmes_cortes?' + qs,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': 'Bearer ' + SUPABASE_KEY,
+                            'Prefer': 'count=exact'
+                        }
+                    }
+                );
+                if (!res.ok) return;
+                const range = res.headers.get('content-range');
+                const total = range ? parseInt(range.split('/')[1]) : 0;
+                
+                // Salva no objeto pra usar de cache
+                movie.sceneCount = total;
+                
+                const el = document.getElementById('count_' + movie.slug);
+                if (el) el.textContent = total + ' cena' + (total !== 1 ? 's' : '');
+            } catch (e) { }
+        }));
+    }
 }
 
 async function openClipMovie(movie) {
-    clipSelectedMovie = movie;
+    // Usa variável LOCAL de cenas - nunca modifica o objeto do cache
+    const currentSlug = movie.slug;
+    clipSelectedMovie = { slug: currentSlug };
     const area = document.getElementById('videosContent');
-
-    // Show a loading state inside the detail view first
-    area.innerHTML = `
-    <div id="clipcafeWrap" class="detail-mode">
-      <div class="state-box" style="margin-top:100px"><div class="spinner"></div><p>Carregando todas as cenas...</p></div>
-    </div>`;
-
-    // Fetch ALL scenes for this specific movie slug (STRICT LIMIT for scene fetch)
-    try {
-        const url = `https://api.clip.cafe/?api_key=${CLIPCAFE_KEY}&size=300&movie_slug=${movie.slug}`;
-        // Adiciona headers de navegador para evitar 403 na busca de cenas
-        const res = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' }
-        });
-        if (res.ok) {
-            const data = await res.json();
-            const hits = data?.hits?.hits || [];
-            if (hits.length > 0) {
-                const seen = new Set();
-                const freshClips = [];
-                for (const h of hits) {
-                    const s = h._source;
-                    // STRICT FILTER: Ensure the slug matches exactly to avoid mixed movies
-                    if (s.movie_slug !== movie.slug) continue;
-
-                    const clipId = s.clipID || s.id || Math.random();
-                    if (seen.has(clipId)) continue;
-                    seen.add(clipId);
-                    freshClips.push({ ...s, downloadUrl: s.download });
-                }
-
-                if (freshClips.length > 0) {
-                    movie.clips = freshClips.sort((a, b) => (a.clipID || 0) - (b.clipID || 0));
-                }
-            }
-        }
-    } catch (err) {
-        console.error("Erro ao buscar cenas extras:", err);
-    }
-
-    // Hide global year selector when inside a movie
     const yearSel = document.getElementById('clipcafeYear');
     if (yearSel) yearSel.style.display = 'none';
+
+    area.innerHTML = `
+    <div id="clipcafeWrap" class="detail-mode">
+      <div class="state-box" style="margin-top:100px"><div class="spinner"></div><p>Carregando cenas de ${movie.title}...</p></div>
+    </div>`;
+
+    // Variável LOCAL — completamente isolada do objeto de cache
+    let localClips = [];
+
+    try {
+        const url = `${SUPABASE_URL}/rest/v1/filmes_cortes?select=cena_url&filme_slug=eq.${encodeURIComponent(currentSlug)}&limit=2000`;
+        const res = await fetch(url, {
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        });
+        // Race condition: usuário navegou para outro filme enquanto carregava
+        if (clipSelectedMovie.slug !== currentSlug) return;
+        
+        if (res.ok) {
+            const rows = await res.json();
+            localClips = rows.map(r => ({ downloadUrl: r.cena_url }));
+        }
+    } catch (err) {
+        console.error('Erro ao buscar cenas:', err);
+    }
+
+    // Verifica novamente se o usuário ainda está neste filme
+    if (clipSelectedMovie.slug !== currentSlug) return;
+
+    const posterSrc = movie.poster || '';
 
     area.innerHTML = `
     <div id="clipcafeWrap" class="detail-mode">
@@ -464,57 +452,49 @@ async function openClipMovie(movie) {
       </div>
       <div class="clip-detail-header-v2">
         <div class="clip-poster-container">
-           <img src="${movie.poster}" class="clip-detail-poster-v2" onerror="this.onerror=null; this.src='https://clip.cafe/posters/300/${movie.slug}.jpg'"/>
+           <img src="${posterSrc}" class="clip-detail-poster-v2" onerror="this.style.opacity='0.3'"/>
         </div>
         <div class="clip-header-info">
            <div class="clip-detail-title-v2">${movie.title}</div>
-           <div class="clip-detail-meta-v2">${movie.year} • <span id="clipDetailCount">${movie.clips.length}</span> cenas</div>
+           <div class="clip-detail-meta-v2">${movie.year} • <span id="clipDetailCount">${localClips.length}</span> cenas</div>
         </div>
       </div>
       <div id="clipDetailGrid" class="clip-detail-grid"></div>
       <div id="clipLoadMoreArea" class="load-more-container"></div>
     </div>`;
 
-    renderClipGridPaginated(movie, 0);
+    renderClipGridPaginated(localClips, movie, 0);
 
     document.getElementById('clipBackBtn').addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        clipSelectedMovie = null;
         if (yearSel) yearSel.style.display = 'block';
         renderClipCafe();
         renderMovieGrid();
     });
 
-    // Auto-load on scroll
     const areaScroll = document.getElementById('contentArea');
     let loadingMore = false;
     let currentPage = 0;
-
     areaScroll.onscroll = () => {
+        if (!areaScroll) return;
         if (loadingMore) return;
         if (areaScroll.scrollTop + areaScroll.clientHeight >= areaScroll.scrollHeight - 100) {
-            const total = movie.clips.length;
+            const total = localClips.length;
             if ((currentPage + 1) * CLIP_PAGE_SIZE < total) {
                 loadingMore = true;
                 currentPage++;
                 const loadArea = document.getElementById('clipLoadMoreArea');
-                if (loadArea) loadArea.innerHTML = '<div class="spinner" style="margin: 10px auto"></div>';
-
-                setTimeout(() => {
-                    renderClipGridPaginated(movie, currentPage);
-                    loadingMore = false;
-                    if (loadArea) loadArea.innerHTML = '';
-                }, 400);
+                if (loadArea) loadArea.innerHTML = '<div class="spinner" style="margin:10px auto"></div>';
+                setTimeout(() => { renderClipGridPaginated(localClips, movie, currentPage); loadingMore = false; if (loadArea) loadArea.innerHTML = ''; }, 400);
             }
         }
     };
-
-    renderClipGridPaginated(movie, 0);
 }
 
-let CLIP_PAGE_SIZE = 12;
 
-function renderClipGridPaginated(movie, page) {
+function renderClipGridPaginated(clips, movie, page) {
     const grid = document.getElementById('clipDetailGrid');
     const loadMoreArea = document.getElementById('clipLoadMoreArea');
     if (!grid) return;
@@ -523,179 +503,115 @@ function renderClipGridPaginated(movie, page) {
 
     const start = page * CLIP_PAGE_SIZE;
     const end = start + CLIP_PAGE_SIZE;
-    const chunk = movie.clips.slice(start, end);
+    const chunk = clips.slice(start, end);
 
     if (chunk.length === 0 && page === 0) {
-        grid.innerHTML = '<div class="state-box" style="grid-column: span 3"><p>Nenhuma cena disponível.</p></div>';
+        grid.innerHTML = '<div class="state-box" style="grid-column:span 3"><p>Nenhuma cena disponível.</p></div>';
         return;
     }
 
     chunk.forEach((c, idx) => {
         if (!c) return;
-        const clipSlug = c.slug || c.movie_slug || movie.slug;
         const globalIndex = start + idx + 1;
-        let finalDUrl = c.downloadUrl || c.download || c.preview_url || '';
-
-        // Se for Google Drive (ex: de alguma migração)
-        const drId = c.drive_id || c.google_drive_id || null;
-        if (drId) {
-            finalDUrl = `${SUPABASE_URL}/functions/v1/stream-audio-drive?driveId=${drId}&download=1`;
-        }
+        const finalDUrl = c.downloadUrl || '';
+        const urlParts = finalDUrl.split('/');
+        const fileName = urlParts[urlParts.length - 1] || '';
+        const sceneSlug = fileName.replace('_HQ.mp4', '').replace(/-/g, ' ');
 
         const div = document.createElement('div');
         div.className = 'clip-scene-card';
-        // Fallbacks para Miniatura
-        const thumbUrl = `https://clip.cafe/img400/${clipSlug}.jpg`;
-        const posterUrl = `https://clip.cafe/posters/300/${movie.slug}.jpg`;
 
         div.innerHTML = `
-            <div class="clip-scene-thumb" style="position:relative; background:#111">
-                <img src="${thumbUrl}" loading="lazy" 
-                     onerror="this.onerror=null; this.src='${posterUrl}'; this.style.opacity='0.4'"/>
-                <div class="clip-scene-overlay">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <div class="clip-scene-thumb" style="position:relative; background:#000; overflow:hidden; cursor:pointer;">
+                <video
+                    class="scene-thumb-video"
+                    src="${finalDUrl}#t=5"
+                    muted
+                    preload="metadata"
+                    style="width:100%; height:100%; object-fit:cover; display:block; pointer-events:none;"
+                ></video>
+                <div class="clip-scene-overlay" style="opacity:1; transition:opacity .2s;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.7))"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                 </div>
             </div>
-            <div class="clip-scene-title" title="${(c.caption || '').replace(/"/g, '&quot;')}">Cena ${globalIndex}</div>
+            <div class="clip-scene-title" title="${sceneSlug}">${sceneSlug || 'Cena ' + globalIndex}</div>
             <button class="clip-scene-import">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Importar
             </button>`;
 
-        // Preview on thumb click
-        div.querySelector('.clip-scene-thumb').onclick = () => openClipPreviewLocal(finalDUrl, c.caption || movie.title);
+        const vid = div.querySelector('.scene-thumb-video');
+        vid.addEventListener('loadedmetadata', () => { vid.currentTime = Math.min(5, vid.duration * 0.1); });
 
-        // Import
+        const thumb = div.querySelector('.clip-scene-thumb');
+        const overlay = div.querySelector('.clip-scene-overlay');
+        thumb.addEventListener('mouseenter', () => { vid.play().catch(() => { }); if (overlay) overlay.style.opacity = '0'; });
+        thumb.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = Math.min(5, vid.duration * 0.1 || 5); if (overlay) overlay.style.opacity = '1'; });
+        thumb.onclick = () => openClipPreviewLocal(finalDUrl, sceneSlug || movie.title);
+
         const btn = div.querySelector('.clip-scene-import');
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            btn.disabled = true;
-            btn.innerHTML = '<div class="spinner-small"></div> baixando...';
-            importClipCafeVideo(finalDUrl, (c.caption || movie.title).substring(0, 40), btn);
-        };
+        btn.onclick = (e) => { e.stopPropagation(); btn.disabled = true; btn.innerHTML = '<div class="spinner-small"></div> baixando...'; importClipCafeVideo(finalDUrl, sceneSlug || movie.title, btn); };
 
         grid.appendChild(div);
     });
 
-    // Load More Button
-    if (end < movie.clips.length) {
-        loadMoreArea.innerHTML = `
-            <button class="clip-load-more-btn">
-                Carregar mais cenas (${movie.clips.length - end} restantes)
-            </button>
-        `;
-        loadMoreArea.querySelector('button').onclick = () => {
-            loadMoreArea.innerHTML = '<div class="spinner" style="margin: 10px auto"></div>';
-            setTimeout(() => renderClipGridPaginated(movie, page + 1), 300);
-        };
+    if (end < clips.length) {
+        loadMoreArea.innerHTML = `<button class="clip-load-more-btn">Carregar mais cenas (${clips.length - end} restantes)</button>`;
+        loadMoreArea.querySelector('button').onclick = () => { loadMoreArea.innerHTML = '<div class="spinner" style="margin:10px auto"></div>'; setTimeout(() => renderClipGridPaginated(clips, movie, page + 1), 300); };
     } else {
         loadMoreArea.innerHTML = '';
     }
 }
 
-
 // ─────────────────────────────────────────────────
-// CLIP PREVIEW LOCAL (baixa temp → file://)
+// CLIP PREVIEW — streaming direto do R2
 // ─────────────────────────────────────────────────
 async function openClipPreviewLocal(videoUrl, title) {
     if (!videoUrl) { showToast('Sem URL de preview', 'error'); return; }
 
-    // Remove modal anterior
     const existing = document.getElementById('clipPreviewModal');
-    if (existing) existing.remove();
+    if (existing) { const ov = existing.querySelector('video'); if (ov) { ov.pause(); ov.src = ''; } existing.remove(); }
 
-    // Monta modal com loading
     const modal = document.createElement('div');
     modal.id = 'clipPreviewModal';
-    modal.style.cssText = `
-        position:fixed; inset:0; z-index:9999;
-        background:rgba(0,0,0,0.93);
-        display:flex; flex-direction:column;
-        align-items:center; justify-content:center;
-        padding:16px;
-    `;
+    modal.style.cssText = 'position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.93); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px;';
+
+    const cleanTitle = title.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
     modal.innerHTML = `
-        <div id="clipPreviewBox" style="width:100%; max-width:640px; background:#0f0f0f; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); box-shadow:0 24px 80px rgba(0,0,0,0.9);">
+        <div id="clipPreviewBox" style="width:100%; max-width:680px; background:#0f0f0f; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); box-shadow:0 24px 80px rgba(0,0,0,0.9);">
             <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.07); background:#141414;">
-                <span style="font-size:10px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:.1em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80%;">${title}</span>
-                <button id="clipPreviewClose" style="background:rgba(255,60,60,0.15); border:1px solid rgba(255,60,60,0.25); color:#ff6b6b; border-radius:6px; padding:4px 12px; cursor:pointer; font-size:10px; font-weight:800; letter-spacing:.05em;">✕ FECHAR</button>
+                <span style="font-size:10px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:.1em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80%;">${cleanTitle}</span>
+                <button id="clipPreviewClose" style="background:rgba(255,60,60,0.15); border:1px solid rgba(255,60,60,0.25); color:#ff6b6b; border-radius:6px; padding:4px 12px; cursor:pointer; font-size:10px; font-weight:800;">✕ FECHAR</button>
             </div>
-            <div id="clipPreviewContent" style="width:100%; aspect-ratio:16/9; background:#000; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px; min-height:220px;">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(160,255,109,0.7)" stroke-width="2" class="spin-icon" style="animation:spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                <span style="font-size:9px; color:#666; font-weight:700; text-transform:uppercase; letter-spacing:.15em;">Carregando preview...</span>
+            <div id="clipPreviewContent" style="width:100%; background:#000; min-height:220px; display:flex; align-items:center; justify-content:center;">
+                <video id="clipPreviewVideo" src="${videoUrl}" controls autoplay preload="auto" style="width:100%; max-height:400px; background:#000; display:block; outline:none;" onerror="document.getElementById('clipPreviewVideoError').style.display='flex';"></video>
+                <div id="clipPreviewVideoError" style="display:none; flex-direction:column; align-items:center; gap:8px; padding:30px; color:#ff6b6b; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Erro ao carregar preview
+                </div>
             </div>
         </div>
     `;
 
-    modal.addEventListener('click', (e) => { if (e.target === modal) closePreviewModal(); });
-    modal.querySelector('#clipPreviewClose').addEventListener('click', closePreviewModal);
-    document.body.appendChild(modal);
-
     function closePreviewModal() {
         const m = document.getElementById('clipPreviewModal');
-        if (m) {
-            const vid = m.querySelector('video');
-            if (vid) { vid.pause(); vid.src = ''; }
-            m.remove();
-        }
-        // Apaga arquivo temporário
-        if (window._clipPreviewTempFile) {
-            try {
-                const fs = window.require('fs');
-                fs.unlink(window._clipPreviewTempFile, () => { });
-            } catch (e) { }
-            window._clipPreviewTempFile = null;
-        }
+        if (m) { const v = m.querySelector('video'); if (v) { v.pause(); v.src = ''; } m.remove(); }
     }
 
-    try {
-        const path = window.require('path');
-        const os = window.require('os');
-        const fs = window.require('fs');
-
-        const randomId = Math.random().toString(36).substring(2, 8);
-        const tmpFile = path.join(os.tmpdir(), `clip_pre_${Date.now()}_${randomId}.mp4`);
-        window._clipPreviewTempFile = tmpFile;
-
-        console.log('[Preview] Baixando:', videoUrl);
-        await downloadFileNode(videoUrl, tmpFile);
-
-        // Confirma que o arquivo existe e tem tamanho
-        if (!fs.existsSync(tmpFile) || fs.statSync(tmpFile).size < 1000) {
-            throw new Error('Arquivo de preview vazio ou inválido');
-        }
-
-        const content = document.getElementById('clipPreviewContent');
-        if (!content) return; // Modal foi fechado durante download
-
-        // Converte path Windows para URL file://
-        const fileUrl = 'file:///' + tmpFile.replace(/\\/g, '/');
-
-        content.innerHTML = `
-            <video
-                src="${fileUrl}"
-                controls
-                autoplay
-                style="width:100%; height:100%; max-height:360px; background:#000; display:block; outline:none;"
-            ></video>
-        `;
-
-    } catch (err) {
-        const content = document.getElementById('clipPreviewContent');
-        if (content) {
-            content.innerHTML = `<span style="font-size:9px; color:#ff6b6b; font-weight:700; text-transform:uppercase; letter-spacing:.1em; padding:20px;">Erro ao carregar preview</span>`;
-        }
-        console.error('Preview err:', err);
-    }
+    modal.addEventListener('click', (e) => { if (e.target === modal) closePreviewModal(); });
+    modal.querySelector('#clipPreviewClose').addEventListener('click', closePreviewModal);
+    document.addEventListener('keydown', function escClose(e) { if (e.key === 'Escape') { closePreviewModal(); document.removeEventListener('keydown', escClose); } });
+    document.body.appendChild(modal);
 }
 
 async function downloadFileNode(url, dest, _attempt) {
     const attempt = _attempt || 1;
     const MAX_ATTEMPTS = 5;
-    const fs = window.require('fs');
-    const https = window.require('https');
-    const http = window.require('http');
-    const { URL } = window.require('url');
+    const fs = window.require ? window.require('fs') : require('fs');
+    const https = window.require ? window.require('https') : require('https');
+    const http = window.require ? window.require('http') : require('http');
+    const { URL } = window.require ? window.require('url') : require('url');
 
     return new Promise((resolve, reject) => {
         let isDone = false;
@@ -711,7 +627,6 @@ async function downloadFileNode(url, dest, _attempt) {
             timeout: 30000
         };
 
-        // Só remove o arquivo se for a primeira tentativa de um NOVO download
         if (attempt === 1 && fs.existsSync(dest)) {
             try { fs.unlinkSync(dest); } catch (e) { }
         }
@@ -719,13 +634,12 @@ async function downloadFileNode(url, dest, _attempt) {
         const req = protocol.get(url, options, (res) => {
             if (isDone) return;
 
-            // Gerenciar Redirecionamentos de forma limpa
             if ([301, 302, 307, 308].includes(res.statusCode)) {
                 res.resume();
                 const nextUrl = res.headers.location;
                 if (!nextUrl || attempt >= MAX_ATTEMPTS) {
                     isDone = true;
-                    reject(new Error('Falha no redirecionamento ou excesso de tentativas'));
+                    reject(new Error(attempt >= MAX_ATTEMPTS ? 'Excesso de redirecionamentos' : 'URL de redirecionamento inválida'));
                     return;
                 }
                 downloadFileNode(nextUrl, dest, attempt + 1).then(resolve).catch(reject);
@@ -736,7 +650,7 @@ async function downloadFileNode(url, dest, _attempt) {
             if (res.statusCode !== 200) {
                 res.resume();
                 isDone = true;
-                reject(new Error(`Erro de Servidor: ${res.statusCode}`));
+                reject(new Error(`Erro HTTP ${res.statusCode}`));
                 return;
             }
 
@@ -745,26 +659,23 @@ async function downloadFileNode(url, dest, _attempt) {
 
             let lastDataTime = Date.now();
             const watchdog = setInterval(() => {
-                if (Date.now() - lastDataTime > 20000) { // 20s sem dados = trava
+                if (Date.now() - lastDataTime > 20000) {
                     isDone = true;
                     clearInterval(watchdog);
                     req.destroy();
                     fileStream.destroy();
                     if (attempt < MAX_ATTEMPTS) {
-                        console.log('[Download] Inativo. Tentando novamente...');
+                        console.log('[Download] Inativo. Reiniciando...');
                         downloadFileNode(url, dest, attempt + 1).then(resolve).catch(reject);
                     } else {
-                        reject(new Error('Download interrompido por inatividade'));
+                        reject(new Error('Download cancelado por inatividade'));
                     }
                 }
             }, 5000);
 
             res.on('data', () => { lastDataTime = Date.now(); });
 
-            fileStream.on('finish', () => {
-                fileStream.close();
-            });
-
+            fileStream.on('finish', () => { fileStream.close(); });
             fileStream.on('close', () => {
                 if (isDone) return;
                 isDone = true;
@@ -809,9 +720,9 @@ async function importClipCafeVideo(videoUrl, title, btn) {
     showToast('⬇ Baixando cena...', 'info');
 
     try {
-        const fs = window.require('fs');
-        const path = window.require('path');
-        const os = window.require('os');
+        const fs = window.require ? window.require('fs') : require('fs');
+        const path = window.require ? window.require('path') : require('path');
+        const os = window.require ? window.require('os') : require('os');
 
         const libPath = path.join(os.homedir(), 'Documents', 'EditorMaster_Library', 'Filmes');
         if (!fs.existsSync(libPath)) { try { fs.mkdirSync(libPath, { recursive: true }); } catch (e) { } }
@@ -825,25 +736,21 @@ async function importClipCafeVideo(videoUrl, title, btn) {
         const stats = fs.statSync(finalPath);
         if (stats.size < 1000) throw new Error('Arquivo baixado está vazio ou inválido');
 
-        // Codifica em base64 para evitar erros de escape por chars especiais nos títulos
-        const b64Path = btoa(unescape(encodeURIComponent(finalPath)));
-        const b64Title = btoa(unescape(encodeURIComponent(title)));
-
-        csInterface.evalScript(`importLocalVideo("${b64Path}", "${b64Title}", true)`, result => {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Importar';
-            }
-            if (!result || result === 'EvalScript error.') {
-                showToast('Erro interno Premiere: ' + (result || 'null'), 'error');
-            } else if (result.startsWith('SUCCESS_POOL')) {
-                showToast('✓ ' + title.substring(0, 28) + ' no Media Pool!', 'info');
-            } else if (result.startsWith('ERROR:')) {
-                showToast(result.replace('ERROR:', '').trim(), 'error');
-            } else {
-                showToast('✓ ' + title.substring(0, 28) + ' na timeline!', 'success');
-            }
-        });
+        const result = await window.resolveAPI.importMedia(finalPath);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Importar';
+        }
+        if (!result) {
+            showToast('Erro interno DaVinci: sem resposta', 'error');
+        } else if (result.startsWith('ERROR:')) {
+            showToast(result.replace('ERROR:', '').trim(), 'error');
+        } else if (result.includes('SUCCESS:')) {
+            if (result.includes('Media Pool')) showToast('✓ ' + title.substring(0, 28) + ' no Media Pool!', 'info');
+            else showToast('✓ ' + title.substring(0, 28) + ' na timeline!', 'success');
+        } else {
+            showToast(result, 'info');
+        }
 
     } catch (err) {
         if (btn) {
@@ -895,7 +802,7 @@ async function loadMusic(page = 0) {
                 'Prefer': 'count=exact'
             }
         });
-        if (!res.ok) throw new Error(`Supabase ${res.status}`);
+        if (!res.ok) throw new Error(`Supabase ${res.status} `);
 
         const countHeader = res.headers.get('content-range');
         if (countHeader) {
@@ -1064,7 +971,7 @@ async function loadSfx() {
 
         if (!res.ok) {
             const errText = await res.text();
-            throw new Error(`Supabase erro ${res.status}: ${errText.substring(0, 80)}`);
+            throw new Error(`Supabase erro ${res.status}: ${errText.substring(0, 80)} `);
         }
 
         // Get total count from header
@@ -1280,15 +1187,15 @@ function createVideoCard(v) {
     const card = document.createElement('div');
     card.className = 'video-card';
     card.innerHTML = `
-    <div class="video-thumb">
+                <div class="video-thumb" >
       <video muted loop playsinline preload="metadata" poster="${thumb}"><source src="${url}" type="video/mp4"></video>
       <div class="play-overlay">⬇</div>
       <div class="import-flash">Importando...</div>
     </div>
-    <div class="video-info">
-      <div class="video-title">${title}</div>
-      <div class="video-meta">${cat}</div>
-    </div>`;
+            <div class="video-info">
+                <div class="video-title">${title}</div>
+                <div class="video-meta">${cat}</div>
+            </div>`;
     const vid = card.querySelector('video');
     card.addEventListener('mouseenter', () => { vid.currentTime = 0; vid.play().catch(() => { }); });
     card.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = 0; });
@@ -1329,7 +1236,7 @@ function renderMusic(hasMore = false) {
         const btn = document.createElement('button');
         btn.className = 'music-load-more sfx-load-more';
         const total = musicTotalCount || currentMusic.length;
-        btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg> Carregar mais músicas (${currentMusic.length.toLocaleString('pt-BR')} / ${total.toLocaleString('pt-BR')})`;
+        btn.innerHTML = `<svg width = "11" height = "11" viewBox = "0 0 24 24" fill = "none" stroke = "currentColor" stroke - width="2" > <polyline points="6 9 12 15 18 9"></polyline></svg> Carregar mais músicas(${currentMusic.length.toLocaleString('pt-BR')} / ${total.toLocaleString('pt-BR')})`;
         btn.addEventListener('click', () => {
             btn.innerHTML = '<div class="spinner" style="width:12px;height:12px;border-width:2px;margin:0"></div> Carregando...';
             btn.style.pointerEvents = 'none';
@@ -1348,7 +1255,7 @@ function createMusicCard(m) {
     const dur = m.duracao || 0;
     const peaks = m.picos || generateFakePeaks(title);
     const peaksArr = Array.isArray(peaks) ? peaks : generateFakePeaks(title);
-    const durStr = dur > 0 ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}` : '';
+    const durStr = dur > 0 ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')} ` : '';
 
     const card = document.createElement('div');
     card.className = 'music-card sfx-style'; // Adding sfx-style class for layout
@@ -1361,7 +1268,7 @@ function createMusicCard(m) {
     const dlIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
 
     card.innerHTML = `
-    <button class="music-play-btn">${playIconSvg}</button>
+        <button class="music-play-btn">${playIconSvg}</button>
     <div class="music-cover-mini">
         ${cover ? `<img src="${cover}" alt="" onerror="this.style.display='none'">` : '<span style="font-size:10px;opacity:0.5">M</span>'}
     </div>
@@ -1456,9 +1363,9 @@ function renderSfx(hasMore = false) {
         const total = sfxTotalCount || currentSfx.length;
         const totalDisplayed = currentSfx.length; // More accurate than page math since we use append
         btn.innerHTML = `
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            Carregar mais (${totalDisplayed.toLocaleString('pt-BR')} / ${total.toLocaleString('pt-BR')})
-        `;
+            <svg width = "11" height = "11" viewBox = "0 0 24 24" fill = "none" stroke = "currentColor" stroke - width="2" stroke - linecap="round" stroke - linejoin="round" > <polyline points="6 9 12 15 18 9"></polyline></svg>
+                Carregar mais(${totalDisplayed.toLocaleString('pt-BR')} / ${total.toLocaleString('pt-BR')})
+                    `;
         btn.addEventListener('click', () => {
             btn.innerHTML = '<div class="spinner" style="width:12px;height:12px;border-width:2px;margin:0"></div> Carregando...';
             btn.style.pointerEvents = 'none';
@@ -1491,7 +1398,7 @@ function createSfxCard(s) {
     const dlIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
 
     card.innerHTML = `
-    <button class="sfx-play-btn">${playIconSvg}</button>
+        <button class="sfx-play-btn">${playIconSvg}</button>
     <div class="sfx-info">
       <div class="sfx-title">${title}</div>
       <div class="sfx-tags">${tagsHtml}</div>
@@ -1625,14 +1532,26 @@ function stopAudio() {
 // ─────────────────────────────────────────────────
 // IMPORT INTO PREMIERE
 // ─────────────────────────────────────────────────
-function importVideo(url, title) {
+async function importVideo(url, title) {
     if (!url) { showToast('Vídeo sem URL', 'error'); return; }
     showToast('Importando vídeo...', 'info');
-    csInterface.evalScript(`importVideoFromURL("${esc(url)}", "${esc(title)}")`, result => {
-        if (!result || result === 'EvalScript error.') showToast('Erro: Premiere conectado?', 'error');
+    try {
+        const fs = window.require('fs');
+        const path = window.require('path');
+        const os = window.require('os');
+        const libPath = path.join(os.homedir(), 'Documents', 'EditorMaster_Library', 'Filmes');
+        if (!fs.existsSync(libPath)) { try { fs.mkdirSync(libPath, { recursive: true }); } catch (e) { } }
+        const safeTitle = title.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50);
+        const finalPath = path.join(libPath, `${safeTitle}_${Date.now()}.mp4`);
+        await downloadFileNode(url, finalPath);
+
+        const result = await window.resolveAPI.importMedia(finalPath);
+        if (!result) showToast('Erro no DaVinci. DaVinci conectado?', 'error');
         else if (result.startsWith('ERROR:')) showToast(result.replace('ERROR:', '').trim(), 'error');
         else showToast('✓ ' + title.substring(0, 28) + ' importado!', 'success');
-    });
+    } catch (err) {
+        showToast('Erro: ' + err.message, 'error');
+    }
 }
 
 async function importAudio(url, title, btn) {
@@ -1666,18 +1585,17 @@ async function importAudio(url, title, btn) {
         const stats = fs.statSync(finalPath);
         if (stats.size < 1000) throw new Error('Arquivo baixado está vazio ou inválido');
 
-        csInterface.evalScript(`importLocalAudio("${esc(finalPath)}", "${esc(title)}")`, result => {
-            if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
-            if (!result || result === 'EvalScript error.') {
-                showToast('Erro no Premiere. Premiere está aberto com projeto?', 'error');
-            } else if (result.startsWith('ERROR:')) {
-                showToast(result.replace('ERROR:', '').trim().substring(0, 80), 'error');
-            } else if (result.startsWith('SUCCESS_POOL:')) {
-                showToast('No Media Pool (sem faixa de áudio na timeline)', 'info');
-            } else {
-                showToast(title.substring(0, 30) + ' na timeline!', 'success');
-            }
-        });
+        const result = await window.resolveAPI.importMedia(finalPath);
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        if (!result) {
+            showToast('Erro no DaVinci. DaVinci está aberto com projeto?', 'error');
+        } else if (result.startsWith('ERROR:')) {
+            showToast(result.replace('ERROR:', '').trim().substring(0, 80), 'error');
+        } else if (result.includes('Media Pool')) {
+            showToast('No Media Pool (sem faixa ativa na timeline)', 'info');
+        } else {
+            showToast(title.substring(0, 30) + ' na timeline!', 'success');
+        }
 
     } catch (err) {
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
@@ -1705,13 +1623,13 @@ function getActivePane() {
 
 function showLoading() {
     const pane = getActivePane();
-    if (pane) pane.innerHTML = `<div class="state-box"><div class="spinner"></div><p>Carregando...</p></div>`;
+    if (pane) pane.innerHTML = `<div class="state-box" ><div class="spinner"></div><p>Carregando...</p></div> `;
 }
 
 function showError(msg, retryFn) {
     const pane = getActivePane();
     if (!pane) return;
-    pane.innerHTML = `<div class="state-box"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,107,138,0.5)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></div><p>${msg}</p><button class="btn-retry" id="retryBtn">Tentar novamente</button></div>`;
+    pane.innerHTML = `<div class="state-box" ><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,107,138,0.5)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></div><p>${msg}</p><button class="btn-retry" id="retryBtn">Tentar novamente</button></div> `;
     const btn = pane.querySelector('#retryBtn');
     if (btn) btn.addEventListener('click', retryFn);
 }
@@ -1726,7 +1644,7 @@ function showToast(msg, type = 'info') {
 
 function fmtTime(s) {
     if (isNaN(s)) return '0:00';
-    return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
+    return `${Math.floor(s / 60)}: ${Math.floor(s % 60).toString().padStart(2, '0')}`;
 }
 
 function generateFakePeaks(seed) {
