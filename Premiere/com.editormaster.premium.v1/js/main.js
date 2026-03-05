@@ -64,17 +64,14 @@ let activePlayBtn = null;
 // INIT
 // ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    // csInterface = new CSInterface(); // Removido para DaVinci
+    if (typeof CSInterface !== 'undefined') csInterface = new CSInterface();
     setupEvents();
     buildSfxMainCatBar();
     buildMusicMainCatBar();
     populateClipYears();
 
-    // Auto-load everything on open
+    // Load only the initial tab to be efficient and stable
     loadAll();
-    loadVideos(); // Initial fetch for movies
-    loadSfx();    // Initial fetch for SFX
-    loadMusic();  // Initial fetch for Music
 });
 
 async function populateClipYears() {
@@ -221,9 +218,10 @@ function switchTab(tab) {
 // LOAD ALL
 // ─────────────────────────────────────────────────
 async function loadAll() {
-    loadVideos();
-    loadMusic();
-    if (currentTab === 'sfx') loadSfx();
+    // Only load the current tab to be safe and fast
+    if (currentTab === 'videos') loadVideos();
+    else if (currentTab === 'music') loadMusic();
+    else if (currentTab === 'sfx') loadSfx();
 }
 
 // ─────────────────────────────────────────────────
@@ -371,6 +369,7 @@ async function loadSceneCounts(movies) {
     if (!movies.length) return;
     const BATCH = 10;
     for (let i = 0; i < movies.length; i += BATCH) {
+        if (movies !== clipMovies) return; // Fix: abort if search results changed
         const batch = movies.slice(i, i + BATCH);
         await Promise.all(batch.map(async (movie) => {
             // Se já buscou antes durante esta sessão (evita o plugin travar puxando infinitamente)
@@ -394,10 +393,10 @@ async function loadSceneCounts(movies) {
                 if (!res.ok) return;
                 const range = res.headers.get('content-range');
                 const total = range ? parseInt(range.split('/')[1]) : 0;
-                
+
                 // Salva no objeto pra usar de cache
                 movie.sceneCount = total;
-                
+
                 const el = document.getElementById('count_' + movie.slug);
                 if (el) el.textContent = total + ' cena' + (total !== 1 ? 's' : '');
             } catch (e) { }
@@ -409,6 +408,10 @@ async function openClipMovie(movie) {
     // Usa variável LOCAL de cenas - nunca modifica o objeto do cache
     const currentSlug = movie.slug;
     clipSelectedMovie = { slug: currentSlug };
+
+    // Reset do observer da sessão anterior para evitar memory leak
+    if (window._sceneObserver) { window._sceneObserver.disconnect(); window._sceneObserver = undefined; }
+
     const area = document.getElementById('videosContent');
     const yearSel = document.getElementById('clipcafeYear');
     if (yearSel) yearSel.style.display = 'none';
@@ -428,7 +431,7 @@ async function openClipMovie(movie) {
         });
         // Race condition: usuário navegou para outro filme enquanto carregava
         if (clipSelectedMovie.slug !== currentSlug) return;
-        
+
         if (res.ok) {
             const rows = await res.json();
             localClips = rows.map(r => ({ downloadUrl: r.cena_url }));
@@ -469,6 +472,8 @@ async function openClipMovie(movie) {
         e.preventDefault();
         e.stopPropagation();
         clipSelectedMovie = null;
+        const areaScrollBack = document.getElementById('contentArea');
+        if (areaScrollBack) areaScrollBack.onscroll = null; // Fix: clear the scroll handler
         if (yearSel) yearSel.style.display = 'block';
         renderClipCafe();
         renderMovieGrid();
@@ -495,6 +500,9 @@ async function openClipMovie(movie) {
 
 
 function renderClipGridPaginated(clips, movie, page) {
+    // Fix: Race condition check. If we are no longer looking at this movie, abort rendering.
+    if (!clipSelectedMovie || clipSelectedMovie.slug !== movie.slug) return;
+
     const grid = document.getElementById('clipDetailGrid');
     const loadMoreArea = document.getElementById('clipLoadMoreArea');
     if (!grid) return;
@@ -510,9 +518,28 @@ function renderClipGridPaginated(clips, movie, page) {
         return;
     }
 
-    chunk.forEach((c, idx) => {
-        if (!c) return;
-        const globalIndex = start + idx + 1;
+    // Staggered render: insere um card por frame para não travar a UI
+    let i = 0;
+    function renderNext() {
+        // Race condition: usuário saiu do filme
+        if (!clipSelectedMovie || clipSelectedMovie.slug !== movie.slug) return;
+        if (i >= chunk.length) {
+            // Todos os cards inseridos: atualiza o botão de carregar mais
+            if (end < clips.length) {
+                loadMoreArea.innerHTML = `<button class="clip-load-more-btn">Carregar mais cenas (${clips.length - end} restantes)</button>`;
+                loadMoreArea.querySelector('button').onclick = () => {
+                    loadMoreArea.innerHTML = '<div class="spinner" style="margin:10px auto"></div>';
+                    setTimeout(() => renderClipGridPaginated(clips, movie, page + 1), 100);
+                };
+            } else {
+                loadMoreArea.innerHTML = '';
+            }
+            return;
+        }
+        const c = chunk[i];
+        const globalIndex = start + i + 1;
+        i++;
+        if (!c) { requestAnimationFrame(renderNext); return; }
         const finalDUrl = c.downloadUrl || '';
         const urlParts = finalDUrl.split('/');
         const fileName = urlParts[urlParts.length - 1] || '';
@@ -522,45 +549,149 @@ function renderClipGridPaginated(clips, movie, page) {
         div.className = 'clip-scene-card';
 
         div.innerHTML = `
-            <div class="clip-scene-thumb" style="position:relative; background:#000; overflow:hidden; cursor:pointer;">
+            <div class="clip-scene-thumb" style="position:relative; background:#111; overflow:hidden; cursor:pointer;">
                 <video
                     class="scene-thumb-video"
-                    src="${finalDUrl}#t=5"
                     muted
-                    preload="metadata"
-                    style="width:100%; height:100%; object-fit:cover; display:block; pointer-events:none;"
+                    preload="none"
+                    style="width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; opacity:0; transition: opacity 0.5s ease;"
                 ></video>
-                <div class="clip-scene-overlay" style="opacity:1; transition:opacity .2s;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.7))"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <div class="clip-scene-spinner" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:2; pointer-events:none;">
+                    <svg class="thumb-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" style="animation: spin 1s linear infinite;">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                    </svg>
+                </div>
+                <div class="clip-scene-overlay" style="opacity:0; transition:opacity .2s; z-index:5; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.4);">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="white" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.7))"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                 </div>
             </div>
-            <div class="clip-scene-title" title="${sceneSlug}">${sceneSlug || 'Cena ' + globalIndex}</div>
+            <div class="clip-scene-title" title="${sceneSlug}" style="opacity:0.8">${sceneSlug || 'Cena ' + globalIndex}</div>
             <button class="clip-scene-import">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Importar
             </button>`;
 
         const vid = div.querySelector('.scene-thumb-video');
-        vid.addEventListener('loadedmetadata', () => { vid.currentTime = Math.min(5, vid.duration * 0.1); });
-
-        const thumb = div.querySelector('.clip-scene-thumb');
         const overlay = div.querySelector('.clip-scene-overlay');
-        thumb.addEventListener('mouseenter', () => { vid.play().catch(() => { }); if (overlay) overlay.style.opacity = '0'; });
-        thumb.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = Math.min(5, vid.duration * 0.1 || 5); if (overlay) overlay.style.opacity = '1'; });
+        const thumbSpinner = div.querySelector('.clip-scene-spinner');
+        const thumb = div.querySelector('.clip-scene-thumb');
+
+        vid.dataset.src = finalDUrl;
+
+        // --- SISTEMA MÁGICO DE FILA DE THUMBNAILS (NUNCA TRAVA O ADOBE/DAVINCI) ---
+        if (!window._thumbQueue) {
+            window._thumbQueue = [];
+            window._thumbProcessing = 0;
+            window._processThumbQueue = () => {
+                // Max 2 decodificadores construindo o frame por vez (Absolutamente liso)
+                if (window._thumbProcessing >= 2 || window._thumbQueue.length === 0) return;
+
+                const task = window._thumbQueue.shift();
+                // Se o video não estiver mais na tela, ignora
+                if (!task.v._isIntersecting) {
+                    window._processThumbQueue();
+                    return;
+                }
+
+                window._thumbProcessing++;
+                const v = task.v;
+
+                // Timeout de segurança se o Adobe engasgar na rede
+                const fallbackTimeout = setTimeout(() => {
+                    unbind();
+                    if (task.spinner) task.spinner.style.display = 'none';
+                    next();
+                }, 5000);
+
+                const unbind = () => {
+                    v.removeEventListener('canplay', onReady);
+                    v.removeEventListener('loadeddata', onReady);
+                    v.removeEventListener('error', onError);
+                    clearTimeout(fallbackTimeout);
+                };
+
+                const onReady = () => {
+                    unbind();
+                    v.style.opacity = '1';
+                    if (task.spinner) task.spinner.style.display = 'none';
+                    next();
+                };
+
+                const onError = () => {
+                    unbind();
+                    if (task.spinner) task.spinner.style.display = 'none';
+                    next();
+                };
+
+                const next = () => {
+                    window._thumbProcessing--;
+                    window._processThumbQueue();
+                };
+
+                v.addEventListener('canplay', onReady);
+                v.addEventListener('loadeddata', onReady);
+                v.addEventListener('error', onError);
+
+                // Dispara o download do frame
+                v.src = task.url + '#t=2.0';
+                v.load();
+            };
+        }
+
+        if (!window._sceneObserver) {
+            // style helper para o spinner rotativo
+            if (!document.getElementById('spinnerAnimStyle')) {
+                const style = document.createElement('style');
+                style.id = 'spinnerAnimStyle';
+                style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
+                document.head.appendChild(style);
+            }
+
+            window._sceneObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const v = entry.target.querySelector('.scene-thumb-video');
+                    const spin = entry.target.querySelector('.clip-scene-spinner');
+                    if (!v) return;
+
+                    if (entry.isIntersecting) {
+                        v._isIntersecting = true;
+                        // Aguarda um pequeno debounce (ignora scroll super rápido)
+                        v._loadTimer = setTimeout(() => {
+                            if (!v.src && v.dataset.src) {
+                                // Joga na fila para renderizar ordenadamente
+                                window._thumbQueue.push({ v: v, url: v.dataset.src, spinner: spin });
+                                window._processThumbQueue();
+                            }
+                        }, 200);
+                    } else {
+                        v._isIntersecting = false;
+                        if (v._loadTimer) clearTimeout(v._loadTimer);
+                        // Limpa VRAM
+                        if (v.src) {
+                            v.style.opacity = '0';
+                            v.removeAttribute('src');
+                            v.load();
+                            if (spin) spin.style.display = 'flex';
+                        }
+                    }
+                });
+            }, { rootMargin: '100px 0px' });
+        }
+
+        window._sceneObserver.observe(div);
+
+        // HOVER: apenas fade do icone de play. ZERO rede via video src.
+        thumb.addEventListener('mouseenter', () => { if (overlay) overlay.style.opacity = '1'; });
+        thumb.addEventListener('mouseleave', () => { if (overlay) overlay.style.opacity = '0'; });
         thumb.onclick = () => openClipPreviewLocal(finalDUrl, sceneSlug || movie.title);
 
         const btn = div.querySelector('.clip-scene-import');
         btn.onclick = (e) => { e.stopPropagation(); btn.disabled = true; btn.innerHTML = '<div class="spinner-small"></div> baixando...'; importClipCafeVideo(finalDUrl, sceneSlug || movie.title, btn); };
 
         grid.appendChild(div);
-    });
-
-    if (end < clips.length) {
-        loadMoreArea.innerHTML = `<button class="clip-load-more-btn">Carregar mais cenas (${clips.length - end} restantes)</button>`;
-        loadMoreArea.querySelector('button').onclick = () => { loadMoreArea.innerHTML = '<div class="spinner" style="margin:10px auto"></div>'; setTimeout(() => renderClipGridPaginated(clips, movie, page + 1), 300); };
-    } else {
-        loadMoreArea.innerHTML = '';
+        requestAnimationFrame(renderNext); // Próximo card no próximo frame
     }
+    requestAnimationFrame(renderNext); // Inicia a cadeia
 }
 
 // ─────────────────────────────────────────────────
@@ -584,15 +715,16 @@ async function openClipPreviewLocal(videoUrl, title) {
                 <span style="font-size:10px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:.1em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80%;">${cleanTitle}</span>
                 <button id="clipPreviewClose" style="background:rgba(255,60,60,0.15); border:1px solid rgba(255,60,60,0.25); color:#ff6b6b; border-radius:6px; padding:4px 12px; cursor:pointer; font-size:10px; font-weight:800;">✕ FECHAR</button>
             </div>
-            <div id="clipPreviewContent" style="width:100%; background:#000; min-height:220px; display:flex; align-items:center; justify-content:center;">
-                <video id="clipPreviewVideo" src="${videoUrl}" controls autoplay preload="auto" style="width:100%; max-height:400px; background:#000; display:block; outline:none;" onerror="document.getElementById('clipPreviewVideoError').style.display='flex';"></video>
-                <div id="clipPreviewVideoError" style="display:none; flex-direction:column; align-items:center; gap:8px; padding:30px; color:#ff6b6b; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em;">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    Erro ao carregar preview
-                </div>
+            <div id="clipPreviewContent" style="width:100%; background:#000; min-height:220px; display:flex; align-items:center; justify-content:center; position:relative;">
+                <div id="clipPreviewSpinner" class="spinner" style="position:absolute; z-index:10;"></div>
+                <video id="clipPreviewVideo" src="${videoUrl}" controls autoplay preload="metadata" style="width:100%; height:auto; display:block; max-height:70vh; z-index:20; position:relative;"></video>
             </div>
         </div>
     `;
+
+    const vElement = modal.querySelector('#clipPreviewVideo');
+    const sElement = modal.querySelector('#clipPreviewSpinner');
+    if (vElement) vElement.onplaying = () => { if (sElement) sElement.style.display = 'none'; };
 
     function closePreviewModal() {
         const m = document.getElementById('clipPreviewModal');
@@ -971,7 +1103,7 @@ async function loadSfx() {
 
         if (!res.ok) {
             const errText = await res.text();
-            throw new Error(`Supabase erro ${res.status}: ${errText.substring(0, 80)} `);
+            throw new Error(`Supabase erro ${res.status}: ${errText.substring(0, 80)}`);
         }
 
         // Get total count from header
@@ -1623,15 +1755,15 @@ function getActivePane() {
 
 function showLoading() {
     const pane = getActivePane();
-    if (pane) pane.innerHTML = `<div class="state-box" ><div class="spinner"></div><p>Carregando...</p></div> `;
+    if (pane) pane.innerHTML = `<div class="state-box"><div class="spinner"></div><p>Carregando...</p></div>`;
 }
 
 function showError(msg, retryFn) {
     const pane = getActivePane();
     if (!pane) return;
-    pane.innerHTML = `<div class="state-box" ><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,107,138,0.5)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></div><p>${msg}</p><button class="btn-retry" id="retryBtn">Tentar novamente</button></div> `;
+    pane.innerHTML = `<div class="state-box"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,107,138,0.5)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></div><p>${msg}</p><button class="btn-retry" id="retryBtn">Tentar novamente</button></div>`;
     const btn = pane.querySelector('#retryBtn');
-    if (btn) btn.addEventListener('click', retryFn);
+    if (btn) btn.addEventListener('click', () => { if (retryFn) retryFn(); });
 }
 
 let toastTimer;
