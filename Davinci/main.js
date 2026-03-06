@@ -89,6 +89,7 @@ function createWindow() {
         height: 800,
         backgroundColor: '#0a0a0a',
         title: 'EditLab Pro',
+        icon: path.join(__dirname, 'logo_davinci.png'), // Ícone do app na barra de tarefas
         frame: false, // Remove a borda branca e ícones nativos do Windows
         webPreferences: {
             nodeIntegration: true,
