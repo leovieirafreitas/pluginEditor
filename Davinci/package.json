@@ -1,7 +1,7 @@
 {
   "name": "com.editormaster.premium.v1",
   "version": "1.2.0",
-  "description": "Editor Master Premium for DaVinci Resolve",
+  "description": "EditLab Pro for DaVinci Resolve",
   "main": "main.js",
   "dependencies": {
     "electron": "^25.0.0"

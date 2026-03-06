@@ -2,9 +2,9 @@
 <ExtensionManifest Version="10.0"
   ExtensionBundleId="com.editormaster.premium"
   ExtensionBundleVersion="1.0.0"
-  ExtensionBundleName="Editor Master Premium"
+  ExtensionBundleName="EditLab Pro"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <Author>Editor Master</Author>
+  <Author>EditLab Pro</Author>
   <Abstract>
     <Locale>Plugin premium com vídeos, músicas e SFX profissionais para Premiere Pro</Locale>
   </Abstract>
@@ -41,7 +41,7 @@
         </Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>🎬 Editor Master Premium</Menu>
+          <Menu>🎬 EditLab Pro</Menu>
           <Geometry>
             <Size>
               <Height>700</Height>

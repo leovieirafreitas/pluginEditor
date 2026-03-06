@@ -1,11 +1,11 @@
 @echo off
-title Editor Master Premium - Instalador
+title EditLab Pro - Instalador
 chcp 65001 > nul
 color 0B
 
 echo.
 echo  ╔══════════════════════════════════════════════════════════╗
-echo  ║          🎬 EDITOR MASTER PREMIUM - INSTALADOR           ║
+echo  ║                🎬 EDITLAB PRO - INSTALADOR               ║
 echo  ║                  Versão 1.0                              ║
 echo  ╚══════════════════════════════════════════════════════════╝
 echo.
@@ -81,7 +81,7 @@ echo.
 echo  📌 PRÓXIMOS PASSOS:
 echo.
 echo  1. Abra o Adobe Premiere Pro
-echo  2. Vá em: Window ^> Extensions ^> 🎬 Editor Master Premium
+echo  2. Vá em: Window ^> Extensions ^> 🎬 EditLab Pro
 echo  3. Faça login com suas credenciais
 echo  4. Abra uma timeline e comece a usar!
 echo.

@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * EDITOR MASTER PREMIUM - extendscript.jsx
+ * EDITLAB PRO - extendscript.jsx
  * Native Layer: Video/Audio download and Premiere Pro import
  * ============================================================
  */

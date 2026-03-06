@@ -761,7 +761,7 @@ async function importClipCafeVideo(videoUrl, title, btn) {
         const path = window.require ? window.require('path') : require('path');
         const os = window.require ? window.require('os') : require('os');
 
-        const libPath = path.join(os.homedir(), 'Documents', 'EditorMaster_Library', 'Filmes');
+        const libPath = path.join(os.homedir(), 'Documents', 'EditLabPro_Library', 'Filmes');
         if (!fs.existsSync(libPath)) { try { fs.mkdirSync(libPath, { recursive: true }); } catch (e) { } }
 
         const safeTitle = title.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50);
@@ -1580,7 +1580,7 @@ async function importVideo(url, title) {
         const fs = window.require('fs');
         const path = window.require('path');
         const os = window.require('os');
-        const libPath = path.join(os.homedir(), 'Documents', 'EditorMaster_Library', 'Filmes');
+        const libPath = path.join(os.homedir(), 'Documents', 'EditLabPro_Library', 'Filmes');
         if (!fs.existsSync(libPath)) { try { fs.mkdirSync(libPath, { recursive: true }); } catch (e) { } }
         const safeTitle = title.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50);
         const finalPath = path.join(libPath, `${safeTitle}_${Date.now()}.mp4`);
@@ -1609,7 +1609,7 @@ async function importAudio(url, title, btn) {
         const path = window.require('path');
         const os = window.require('os');
 
-        const libPath = path.join(os.homedir(), 'Documents', 'EditorMaster_Library', subFolder);
+        const libPath = path.join(os.homedir(), 'Documents', 'EditLabPro_Library', subFolder);
         if (!fs.existsSync(libPath)) { try { fs.mkdirSync(libPath, { recursive: true }); } catch (e) { } }
 
         let ext = '.mp3';
