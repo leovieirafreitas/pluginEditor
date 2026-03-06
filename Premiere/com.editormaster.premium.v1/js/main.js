@@ -836,21 +836,25 @@ async function importClipCafeVideo(videoUrl, title, btn) {
         const stats = fs.statSync(finalPath);
         if (stats.size < 1000) throw new Error('Arquivo baixado está vazio ou inválido');
 
-        const result = await window.resolveAPI.importMedia(finalPath);
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Importar';
         }
-        if (!result) {
-            showToast('Erro interno DaVinci: sem resposta', 'error');
-        } else if (result.startsWith('ERROR:')) {
-            showToast(result.replace('ERROR:', '').trim(), 'error');
-        } else if (result.includes('SUCCESS:')) {
-            if (result.includes('Media Pool')) showToast('✓ ' + title.substring(0, 28) + ' no Media Pool!', 'info');
-            else showToast('✓ ' + title.substring(0, 28) + ' na timeline!', 'success');
-        } else {
-            showToast(result, 'info');
-        }
+
+        // ✅ Usa ExtendScript do Premiere (NÃO resolveAPI do DaVinci)
+        const pathB64 = btoa(encodeURIComponent(finalPath));
+        const titleB64 = btoa(encodeURIComponent(title));
+        csInterface.evalScript(`importLocalVideo("${pathB64}", "${titleB64}", true)`, (result) => {
+            if (!result || result === 'undefined') {
+                showToast('Erro: Premiere não respondeu.', 'error');
+            } else if (result.startsWith('ERROR:')) {
+                showToast(result.replace('ERROR:', '').trim().substring(0, 80), 'error');
+            } else if (result.includes('POOL')) {
+                showToast('✓ ' + title.substring(0, 28) + ' no Media Pool!', 'info');
+            } else {
+                showToast('✓ ' + title.substring(0, 28) + ' na timeline!', 'success');
+            }
+        });
 
     } catch (err) {
         if (btn) {
@@ -860,6 +864,7 @@ async function importClipCafeVideo(videoUrl, title, btn) {
         showToast('Erro: ' + err.message.substring(0, 80), 'error');
     }
 }
+
 
 // ─────────────────────────────────────────────────
 // MUSIC — SUPABASE
