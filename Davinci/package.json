@@ -1,9 +1,56 @@
 {
-  "name": "com.editormaster.premium.v1",
+  "name": "editlab-pro-davinci",
   "version": "1.2.0",
   "description": "EditLab Pro for DaVinci Resolve",
+  "author": "EditLab Pro",
   "main": "main.js",
-  "dependencies": {
-    "electron": "^25.0.0"
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64",
+    "dist": "electron-builder --win --x64"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.editormaster.premium.v1",
+    "productName": "EditLab Pro",
+    "copyright": "Copyright © 2024 EditLab Pro",
+    "forceCodeSigning": false,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signingHashAlgorithms": null,
+      "sign": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "EditLab Pro",
+      "deleteAppDataOnUninstall": false,
+      "license": "LICENSE.txt",
+      "include": "installer.nsh"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/electron-builder/**",
+      "!dist/**",
+      "!*.bat",
+      "!*.sh"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "."
+    }
   }
 }
