@@ -1655,7 +1655,7 @@ function stopAudio() {
 // ─────────────────────────────────────────────────
 async function importVideo(url, title) {
     if (!url) { showToast('Vídeo sem URL', 'error'); return; }
-    showToast('Importando vídeo...', 'info');
+    showToast('⬇ Baixando vídeo...', 'info');
     try {
         const fs = window.require('fs');
         const path = window.require('path');
@@ -1666,12 +1666,25 @@ async function importVideo(url, title) {
         const finalPath = path.join(libPath, `${safeTitle}_${Date.now()}.mp4`);
         await downloadFileNode(url, finalPath);
 
-        const result = await window.resolveAPI.importMedia(finalPath);
-        if (!result) showToast('Erro no DaVinci. DaVinci conectado?', 'error');
-        else if (result.startsWith('ERROR:')) showToast(result.replace('ERROR:', '').trim(), 'error');
-        else showToast('✓ ' + title.substring(0, 28) + ' importado!', 'success');
+        const stats = fs.statSync(finalPath);
+        if (stats.size < 1000) throw new Error('Arquivo baixado está vazio ou inválido');
+
+        // ✅ Usa o ExtendScript do Premiere (NÃO o resolveAPI do DaVinci)
+        const pathB64 = btoa(encodeURIComponent(finalPath));
+        const titleB64 = btoa(encodeURIComponent(title));
+        csInterface.evalScript(`importLocalVideo("${pathB64}", "${titleB64}", true)`, (result) => {
+            if (!result || result === 'undefined') {
+                showToast('Erro: Premiere não respondeu.', 'error');
+            } else if (result.startsWith('ERROR:')) {
+                showToast(result.replace('ERROR:', '').trim().substring(0, 80), 'error');
+            } else if (result.includes('POOL')) {
+                showToast('✓ ' + title.substring(0, 28) + ' no Media Pool!', 'info');
+            } else {
+                showToast('✓ ' + title.substring(0, 28) + ' na timeline!', 'success');
+            }
+        });
     } catch (err) {
-        showToast('Erro: ' + err.message, 'error');
+        showToast('Erro: ' + err.message.substring(0, 80), 'error');
     }
 }
 
@@ -1682,7 +1695,7 @@ async function importAudio(url, title, btn) {
     const subFolder = isMusic ? 'Music' : 'SFX';
 
     if (btn) { btn.disabled = true; btn.style.opacity = '.4'; }
-    showToast(`Baixando ${subFolder}...`, 'info');
+    showToast(`⬇ Baixando ${subFolder}...`, 'info');
 
     try {
         const fs = window.require('fs');
@@ -1706,17 +1719,21 @@ async function importAudio(url, title, btn) {
         const stats = fs.statSync(finalPath);
         if (stats.size < 1000) throw new Error('Arquivo baixado está vazio ou inválido');
 
-        const result = await window.resolveAPI.importMedia(finalPath);
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
-        if (!result) {
-            showToast('Erro no DaVinci. DaVinci está aberto com projeto?', 'error');
-        } else if (result.startsWith('ERROR:')) {
-            showToast(result.replace('ERROR:', '').trim().substring(0, 80), 'error');
-        } else if (result.includes('Media Pool')) {
-            showToast('No Media Pool (sem faixa ativa na timeline)', 'info');
-        } else {
-            showToast(title.substring(0, 30) + ' na timeline!', 'success');
-        }
+
+        // ✅ Usa o ExtendScript do Premiere (NÃO o resolveAPI do DaVinci)
+        const pathEsc = finalPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        csInterface.evalScript(`importLocalAudio("${pathEsc}", "${title.replace(/"/g, '')}")`, (result) => {
+            if (!result || result === 'undefined') {
+                showToast('Erro: Premiere não respondeu.', 'error');
+            } else if (result.startsWith('ERROR:')) {
+                showToast(result.replace('ERROR:', '').trim().substring(0, 80), 'error');
+            } else if (result.includes('Media Pool') || result.includes('POOL')) {
+                showToast('✓ No Media Pool (sem faixa ativa na timeline)', 'info');
+            } else {
+                showToast('✓ ' + title.substring(0, 30) + ' na timeline!', 'success');
+            }
+        });
 
     } catch (err) {
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
