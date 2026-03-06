@@ -425,7 +425,7 @@ async function openClipMovie(movie) {
     let localClips = [];
 
     try {
-        const url = `${SUPABASE_URL}/rest/v1/filmes_cortes?select=cena_url&filme_slug=eq.${encodeURIComponent(currentSlug)}&limit=2000`;
+        const url = `${SUPABASE_URL}/rest/v1/filmes_cortes?select=cena_url,thumbnail_url&filme_slug=eq.${encodeURIComponent(currentSlug)}&limit=2000`;
         const res = await fetch(url, {
             headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
         });
@@ -434,7 +434,10 @@ async function openClipMovie(movie) {
 
         if (res.ok) {
             const rows = await res.json();
-            localClips = rows.map(r => ({ downloadUrl: r.cena_url }));
+            localClips = rows.map(r => ({
+                downloadUrl: r.cena_url,
+                thumbUrl: r.thumbnail_url || (r.cena_url ? r.cena_url.replace('.mp4', '.jpg') : '')
+            }));
         }
     } catch (err) {
         console.error('Erro ao buscar cenas:', err);
@@ -550,12 +553,13 @@ function renderClipGridPaginated(clips, movie, page) {
 
         div.innerHTML = `
             <div class="clip-scene-thumb" style="position:relative; background:#111; overflow:hidden; cursor:pointer;">
-                <video
-                    class="scene-thumb-video"
-                    muted
-                    preload="none"
+                <img
+                    class="scene-thumb-img"
+                    src="${c.thumbUrl}"
+                    onload="this.style.opacity='1'; const spin = this.parentElement.querySelector('.clip-scene-spinner'); if(spin) spin.style.display='none';"
+                    onerror="this.style.opacity='0.2'; const spin = this.parentElement.querySelector('.clip-scene-spinner'); if(spin) spin.style.display='none';"
                     style="width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; opacity:0; transition: opacity 0.5s ease;"
-                ></video>
+                />
                 <div class="clip-scene-spinner" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:2; pointer-events:none;">
                     <svg class="thumb-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" style="animation: spin 1s linear infinite;">
                         <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
@@ -571,114 +575,15 @@ function renderClipGridPaginated(clips, movie, page) {
                 Importar
             </button>`;
 
-        const vid = div.querySelector('.scene-thumb-video');
         const overlay = div.querySelector('.clip-scene-overlay');
-        const thumbSpinner = div.querySelector('.clip-scene-spinner');
         const thumb = div.querySelector('.clip-scene-thumb');
 
-        vid.dataset.src = finalDUrl;
-
-        // --- SISTEMA MÁGICO DE FILA DE THUMBNAILS (NUNCA TRAVA O ADOBE/DAVINCI) ---
-        if (!window._thumbQueue) {
-            window._thumbQueue = [];
-            window._thumbProcessing = 0;
-            window._processThumbQueue = () => {
-                // Max 2 decodificadores construindo o frame por vez (Absolutamente liso)
-                if (window._thumbProcessing >= 2 || window._thumbQueue.length === 0) return;
-
-                const task = window._thumbQueue.shift();
-                // Se o video não estiver mais na tela, ignora
-                if (!task.v._isIntersecting) {
-                    window._processThumbQueue();
-                    return;
-                }
-
-                window._thumbProcessing++;
-                const v = task.v;
-
-                // Timeout de segurança se o Adobe engasgar na rede
-                const fallbackTimeout = setTimeout(() => {
-                    unbind();
-                    if (task.spinner) task.spinner.style.display = 'none';
-                    next();
-                }, 5000);
-
-                const unbind = () => {
-                    v.removeEventListener('canplay', onReady);
-                    v.removeEventListener('loadeddata', onReady);
-                    v.removeEventListener('error', onError);
-                    clearTimeout(fallbackTimeout);
-                };
-
-                const onReady = () => {
-                    unbind();
-                    v.style.opacity = '1';
-                    if (task.spinner) task.spinner.style.display = 'none';
-                    next();
-                };
-
-                const onError = () => {
-                    unbind();
-                    if (task.spinner) task.spinner.style.display = 'none';
-                    next();
-                };
-
-                const next = () => {
-                    window._thumbProcessing--;
-                    window._processThumbQueue();
-                };
-
-                v.addEventListener('canplay', onReady);
-                v.addEventListener('loadeddata', onReady);
-                v.addEventListener('error', onError);
-
-                // Dispara o download do frame
-                v.src = task.url + '#t=2.0';
-                v.load();
-            };
+        if (!document.getElementById('spinnerAnimStyle')) {
+            const style = document.createElement('style');
+            style.id = 'spinnerAnimStyle';
+            style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
+            document.head.appendChild(style);
         }
-
-        if (!window._sceneObserver) {
-            // style helper para o spinner rotativo
-            if (!document.getElementById('spinnerAnimStyle')) {
-                const style = document.createElement('style');
-                style.id = 'spinnerAnimStyle';
-                style.innerHTML = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
-                document.head.appendChild(style);
-            }
-
-            window._sceneObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    const v = entry.target.querySelector('.scene-thumb-video');
-                    const spin = entry.target.querySelector('.clip-scene-spinner');
-                    if (!v) return;
-
-                    if (entry.isIntersecting) {
-                        v._isIntersecting = true;
-                        // Aguarda um pequeno debounce (ignora scroll super rápido)
-                        v._loadTimer = setTimeout(() => {
-                            if (!v.src && v.dataset.src) {
-                                // Joga na fila para renderizar ordenadamente
-                                window._thumbQueue.push({ v: v, url: v.dataset.src, spinner: spin });
-                                window._processThumbQueue();
-                            }
-                        }, 200);
-                    } else {
-                        v._isIntersecting = false;
-                        if (v._loadTimer) clearTimeout(v._loadTimer);
-                        // Limpa VRAM
-                        if (v.src) {
-                            v.style.opacity = '0';
-                            v.removeAttribute('src');
-                            v.load();
-                            if (spin) spin.style.display = 'flex';
-                        }
-                    }
-                });
-            }, { rootMargin: '100px 0px' });
-        }
-
-        window._sceneObserver.observe(div);
 
         // HOVER: apenas fade do icone de play. ZERO rede via video src.
         thumb.addEventListener('mouseenter', () => { if (overlay) overlay.style.opacity = '1'; });
@@ -1379,7 +1284,8 @@ function renderMusic(hasMore = false) {
 }
 
 function createMusicCard(m) {
-    const url = m.url || m.Cloud_R2_url || '';
+    let url = m.url || m.Cloud_R2_url || '';
+    if (url && !url.startsWith('http')) url = 'https://' + url;
     const title = m.titulo || m.title || m.name || 'Sem título';
     const artist = m.artista || m.artist || m.author || '';
     const cover = m.capa || m.cover || m.thumbnail || '';
@@ -1511,7 +1417,8 @@ function renderSfx(hasMore = false) {
 }
 
 function createSfxCard(s) {
-    const url = s.url || s.Cloud_R2_url || ''; // Ensure Cloud_R2_url is prioritized
+    let url = s.url || s.Cloud_R2_url || ''; // Ensure Cloud_R2_url is prioritized
+    if (url && !url.startsWith('http')) url = 'https://' + url;
     const title = s.titulo || 'Sem título';
     const tags = Array.isArray(s.categorias) ? s.categorias : (s.categoria ? [s.categoria] : []);
     const dur = s.duracao || 0;
@@ -1643,7 +1550,9 @@ function createSfxCard(s) {
 function toggleAudio(audio, playBtn, playIcon, pauseIcon) {
     if (activeAudio && activeAudio !== audio) stopAudio();
     if (audio.paused) {
-        audio.play().catch(e => showToast('Erro: ' + e.message, 'error'));
+        audio.play().catch(e => {
+            if (e.name !== 'AbortError') showToast('Erro: ' + e.message, 'error');
+        });
         if (pauseIcon) playBtn.innerHTML = pauseIcon; else playBtn.textContent = '⏸';
         playBtn.classList.add('playing');
         activeAudio = audio; activePlayBtn = playBtn;
