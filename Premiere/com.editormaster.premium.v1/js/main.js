@@ -1,8 +1,7 @@
 ﻿const APP_VERSION = '1.2.0';
 
 const API_BASE = 'https://biblioteca-de-cenas.onrender.com/api';
-const SUPABASE_URL = 'https://rposggtfnmqorgjtzpdw.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwb3NnZ3Rmbm1xb3JnanR6cGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMTQ0MTIsImV4cCI6MjA4NzY5MDQxMn0.Xt_0niciJ8sKFZ0y04Ni7Xv2Ly9fMzVVlAhBA78Iim8';
+const API_DB_URL = 'https://apiserver.editlabpro.com.br/api/db';
 
 // Categorias EXATAS do site de referência
 const SFX_MAIN_CATEGORIES = {
@@ -61,18 +60,84 @@ let activeAudio = null;
 let activePlayBtn = null;
 
 // ─────────────────────────────────────────────────
-// INIT
+// INIT & AUTHENTICATION
 // ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof CSInterface !== 'undefined') csInterface = new CSInterface();
+
+    const authOverlay = document.getElementById('authOverlay');
+    const appScreen = document.getElementById('appScreen');
+    const authBtn = document.getElementById('authLoginBtn');
+    const authEmail = document.getElementById('authEmail');
+    const authPass = document.getElementById('authPassword');
+    const authError = document.getElementById('authErrorMsg');
+
+    const storedToken = localStorage.getItem('editlab_token');
+    if (storedToken) {
+        authOverlay.style.display = 'none';
+        appScreen.style.display = 'flex';
+        initApp();
+    } else {
+        authOverlay.style.display = 'flex';
+        appScreen.style.display = 'none';
+    }
+
+    authBtn.addEventListener('click', async () => {
+        const email = authEmail.value.trim();
+        const pass = authPass.value;
+        if (!email || !pass) {
+            authError.textContent = 'Preencha todos os campos.';
+            authError.style.display = 'block';
+            return;
+        }
+
+        authBtn.textContent = 'Verificando...';
+        authError.style.display = 'none';
+
+        try {
+            // Produção: API Hospedada no Easypanel
+            const res = await fetch('https://apiserver.editlabpro.com.br/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password: pass })
+            });
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || 'Credenciais inválidas.');
+
+            localStorage.setItem('editlab_token', data.token);
+            authOverlay.style.opacity = '0';
+            setTimeout(() => {
+                authOverlay.style.display = 'none';
+                appScreen.style.display = 'flex';
+                initApp();
+            }, 300);
+        } catch (e) {
+            authError.textContent = e.message;
+            authError.style.display = 'block';
+        } finally {
+            authBtn.textContent = 'Entrar';
+        }
+    });
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('editlab_token');
+            appScreen.style.display = 'none';
+            authOverlay.style.display = 'flex';
+            authOverlay.style.opacity = '1';
+        });
+    }
+});
+
+function initApp() {
     setupEvents();
     buildSfxMainCatBar();
     buildMusicMainCatBar();
     populateClipYears();
-
-    // Load only the initial tab to be efficient and stable
     loadAll();
-});
+}
 
 async function populateClipYears() {
     const sel = document.getElementById('clipcafeYear');
@@ -82,13 +147,12 @@ async function populateClipYears() {
     sel.addEventListener('change', () => fetchClipMovies(document.getElementById('searchInput').value, sel.value));
 
     try {
-        // Busca anos diretamente da view_filmes_unicos
+        // Busca anos diretamente da view_filmes_unicos pela nossa API Node
         const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/view_filmes_unicos?select=ano&order=ano.desc`,
+            `${API_DB_URL}/view_filmes_unicos?select=ano&order=ano.desc`,
             {
                 headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                    'Authorization': `Bearer ${localStorage.getItem('editlab_token')}`
                 }
             }
         );
@@ -282,13 +346,13 @@ async function fetchClipMovies(query, year) {
     }
 
     try {
-        // Busca filmes únicos da view_filmes_unicos (já agrupados, sem duplicatas)
-        let url = `${SUPABASE_URL}/rest/v1/view_filmes_unicos?select=filme_slug,filme_nome,ano,capa_url&order=filme_nome.asc&limit=1000`;
+        // Busca filmes únicos da view_filmes_unicos via proxy
+        let url = `${API_DB_URL}/view_filmes_unicos?select=filme_slug,filme_nome,ano,capa_url&order=filme_nome.asc&limit=1000`;
         if (year) url += `&ano=eq.${encodeURIComponent(year)}`;
         if (query) url += `&filme_nome=ilike.*${encodeURIComponent(query)}*`;
 
         const res = await fetch(url, {
-            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('editlab_token')}` },
             signal: clipSearchAbort.signal
         });
         if (!res.ok) throw new Error(`Erro Supabase ${res.status}`);
@@ -381,11 +445,10 @@ async function loadSceneCounts(movies) {
             try {
                 const qs = 'select=id&filme_slug=eq.' + encodeURIComponent(movie.slug) + '&limit=1';
                 const res = await fetch(
-                    SUPABASE_URL + '/rest/v1/filmes_cortes?' + qs,
+                    API_DB_URL + '/filmes_cortes?' + qs,
                     {
                         headers: {
-                            'apikey': SUPABASE_KEY,
-                            'Authorization': 'Bearer ' + SUPABASE_KEY,
+                            'Authorization': 'Bearer ' + localStorage.getItem('editlab_token'),
                             'Prefer': 'count=exact'
                         }
                     }
@@ -425,9 +488,9 @@ async function openClipMovie(movie) {
     let localClips = [];
 
     try {
-        const url = `${SUPABASE_URL}/rest/v1/filmes_cortes?select=cena_url,thumbnail_url&filme_slug=eq.${encodeURIComponent(currentSlug)}&limit=2000`;
+        const url = `${API_DB_URL}/filmes_cortes?select=cena_url,thumbnail_url&filme_slug=eq.${encodeURIComponent(currentSlug)}&limit=2000`;
         const res = await fetch(url, {
-            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('editlab_token')}` }
         });
         // Race condition: usuário navegou para outro filme enquanto carregava
         if (clipSelectedMovie.slug !== currentSlug) return;
@@ -825,7 +888,7 @@ async function loadMusic(page = 0) {
     const q = document.getElementById('searchInput').value.trim();
 
     try {
-        let url = `${SUPABASE_URL}/rest/v1/music_library?select=id,titulo,artista,categorias,duracao,capa,picos,Cloud_R2_url&order=titulo.asc&limit=${limit}&offset=${offset}`;
+        let url = `${API_DB_URL}/music_library?select=id,titulo,artista,categorias,duracao,capa,picos,Cloud_R2_url&limit=${limit}&offset=${offset}`;
         if (q) url += `&or=(titulo.ilike.*${encodeURIComponent(q)}*,artista.ilike.*${encodeURIComponent(q)}*)`;
         if (musicActiveCategory && musicActiveCategory !== 'all') {
             url += `&categorias=cs.${encodeURIComponent('["' + musicActiveCategory + '"]')}`;
@@ -833,13 +896,12 @@ async function loadMusic(page = 0) {
 
         const res = await fetch(url, {
             headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Authorization': `Bearer ${localStorage.getItem('editlab_token')}`,
                 'Accept': 'application/json',
                 'Prefer': 'count=exact'
             }
         });
-        if (!res.ok) throw new Error(`Supabase ${res.status} `);
+        if (!res.ok) throw new Error(`API erro ${res.status} `);
 
         const countHeader = res.headers.get('content-range');
         if (countHeader) {
@@ -972,8 +1034,8 @@ async function loadSfx() {
     const q = document.getElementById('searchInput').value.trim();
 
     try {
-        // Base URL
-        let url = `${SUPABASE_URL}/rest/v1/sfx_library?select=id,titulo,categorias,Cloud_R2_url,google_drive_id,duracao,picos&order=titulo.asc&limit=${limit}&offset=${offset}`;
+        // Base URL usando a API segura
+        let url = `${API_DB_URL}/sfx_library?select=id,titulo,categorias,Cloud_R2_url,google_drive_id,duracao,picos&limit=${limit}&offset=${offset}`;
 
         // Search filter
         if (q) {
@@ -999,8 +1061,7 @@ async function loadSfx() {
 
         const res = await fetch(url, {
             headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Authorization': `Bearer ${localStorage.getItem('editlab_token')}`,
                 'Accept': 'application/json',
                 'Prefer': 'count=exact'
             }
@@ -1008,7 +1069,7 @@ async function loadSfx() {
 
         if (!res.ok) {
             const errText = await res.text();
-            throw new Error(`Supabase erro ${res.status}: ${errText.substring(0, 80)}`);
+            throw new Error(`API erro ${res.status}: ${errText.substring(0, 80)}`);
         }
 
         // Get total count from header
@@ -1283,6 +1344,18 @@ function renderMusic(hasMore = false) {
     }
 }
 
+function formatDuration(sec) {
+    if (!sec || isNaN(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
+function formatTimeProgress(curr, dur) {
+    if (!dur || isNaN(dur)) return '0:00';
+    return `${formatDuration(curr)} / ${formatDuration(dur)}`;
+}
+
 function createMusicCard(m) {
     let url = m.url || m.Cloud_R2_url || '';
     if (url && !url.startsWith('http')) url = 'https://' + url;
@@ -1293,7 +1366,7 @@ function createMusicCard(m) {
     const dur = m.duracao || 0;
     const peaks = m.picos || generateFakePeaks(title);
     const peaksArr = Array.isArray(peaks) ? peaks : generateFakePeaks(title);
-    const durStr = dur > 0 ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')} ` : '';
+    const durStr = formatDuration(dur);
 
     const card = document.createElement('div');
     card.className = 'music-card sfx-style'; // Adding sfx-style class for layout
@@ -1325,14 +1398,19 @@ function createMusicCard(m) {
     const bars = card.querySelectorAll('.sfx-wave-bar');
     const waveWrap = card.querySelector('.music-wave-wrap-mini');
 
+    const durEl = card.querySelector('.music-dur-mini');
+
     audio.addEventListener('timeupdate', () => {
         const pct = audio.duration ? (audio.currentTime / audio.duration) : 0;
         const progIdx = Math.floor(pct * bars.length);
+        bars.forEach((b, i) => b.classList.toggle('played', i < progIdx));
+        if (audio.duration && durEl) durEl.textContent = formatTimeProgress(audio.currentTime, audio.duration);
         bars.forEach((b, i) => b.classList.toggle('played', i < progIdx));
     });
 
     audio.addEventListener('ended', () => {
         playBtn.innerHTML = playIconSvg; playBtn.classList.remove('playing');
+        if (durEl) durEl.textContent = formatDuration(dur);
         bars.forEach(b => b.classList.remove('played'));
         activeAudio = null; activePlayBtn = null;
     });
@@ -1429,7 +1507,7 @@ function createSfxCard(s) {
     card.className = 'sfx-card';
 
     const tagsHtml = tags.slice(0, 3).map(t => `<span class="sfx-tag">${t}</span>`).join('');
-    const durStr = dur > 0 ? dur.toFixed(1) + 's' : '';
+    const durStr = formatDuration(dur);
     const waveHtml = peaksArr.map(h => `<div class="sfx-wave-bar" style="height:${Math.max(8, Math.min(100, h))}%"></div>`).join('');
 
     const playIconSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
@@ -1471,9 +1549,7 @@ function createSfxCard(s) {
     }
 
     audio.addEventListener('loadedmetadata', () => {
-        if (!dur && audio.duration) {
-            card.querySelector('.sfx-dur').textContent = audio.duration.toFixed(1) + 's';
-        }
+        // We will update time during playback instead
     });
 
     // SEEK ON CLICK
@@ -1503,10 +1579,13 @@ function createSfxCard(s) {
 
     // WAVEFORM ANIMATION - updates in real-time while audio plays
     let lastPct = -1;
+    const durEl = card.querySelector('.sfx-dur');
     audio.addEventListener('timeupdate', () => {
         if (!audio.duration) return;
         const pct = (audio.currentTime / audio.duration) * 100;
         const roundedPct = Math.floor(pct);
+
+        if (durEl) durEl.textContent = formatTimeProgress(audio.currentTime, audio.duration);
 
         if (roundedPct !== lastPct) {
             lastPct = roundedPct;
@@ -1521,6 +1600,7 @@ function createSfxCard(s) {
         playBtn.innerHTML = playIconSvg;
         playBtn.classList.remove('playing');
         waveBars.forEach(b => b.classList.remove('played'));
+        if (durEl) durEl.textContent = formatDuration(dur);
         activeAudio = null;
         activePlayBtn = null;
     });
