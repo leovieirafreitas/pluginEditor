@@ -344,7 +344,7 @@ function renderMovieGrid() {
         card.className = 'clip-movie-card';
         card.innerHTML = `
           <div class="clip-movie-poster">
-            <img src="${movie.poster}?v=${movie.slug}" alt="${movie.title}" loading="lazy" onerror="this.style.opacity='0.2'"/>
+            ${movie.poster && movie.poster !== 'null' ? `<img src="${movie.poster}" alt="${movie.title}" loading="lazy" onerror="this.outerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:0.2\\'><svg width=\\'40\\' height=\\'40\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'1.5\\'><rect x=\\'2\\' y=\\'2\\' width=\\'20\\' height=\\'20\\' rx=\\'2.18\\' ry=\\'2.18\\'></rect><line x1=\\'7\\' y1=\\'2\\' x2=\\'7\\' y2=\\'22\\'></line><line x1=\\'17\\' y1=\\'2\\' x2=\\'17\\' y2=\\'22\\'></line><line x1=\\'2\\' y1=\\'12\\' x2=\\'22\\' y2=\\'12\\'></line></svg></div>'"/>` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:0.2"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg></div>`}
             <div class="clip-movie-year">${movie.year}</div>
           </div>
           <div class="clip-movie-info">
