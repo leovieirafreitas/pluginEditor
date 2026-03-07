@@ -218,11 +218,14 @@ function switchTab(tab) {
     document.getElementById('videosContent').style.display = (tab === 'videos') ? 'block' : 'none';
     document.getElementById('musicContent').style.display = (tab === 'music') ? 'block' : 'none';
     document.getElementById('sfxContent').style.display = (tab === 'sfx') ? 'block' : 'none';
+    document.getElementById('legendasContent').style.display = (tab === 'legendas') ? 'block' : 'none';
 
     const sfxMainCatEl = document.getElementById('sfxMainCats');
     const musicMainCatEl = document.getElementById('musicMainCats');
+    const legendasMainCatEl = document.getElementById('legendasMainCats');
     const sfxCountBar = document.getElementById('sfxCountBar');
     const musicCountBar = document.getElementById('musicCountBar');
+    const legendasCountBar = document.getElementById('legendasCountBar');
     const filterRow = document.getElementById('filterRow');
     const globalSearch = document.querySelector('.search-bar');
     const selYear = document.getElementById('clipcafeYear');
@@ -230,11 +233,20 @@ function switchTab(tab) {
     // Hide all category bars first
     sfxMainCatEl.style.display = 'none';
     musicMainCatEl.style.display = 'none';
+    if (legendasMainCatEl) legendasMainCatEl.style.display = 'none';
     sfxCountBar.style.display = 'none';
     musicCountBar.style.display = 'none';
+    if (legendasCountBar) legendasCountBar.style.display = 'none';
     filterRow.style.display = 'none';
 
-    if (tab === 'sfx') {
+    if (tab === 'legendas') {
+        if (globalSearch) globalSearch.style.display = 'flex';
+        if (selYear) selYear.style.display = 'none';
+        if (legendasMainCatEl) legendasMainCatEl.style.display = 'block';
+        if (legendasCountBar) legendasCountBar.style.display = 'block';
+        loadCaptions();
+        return;
+    } else if (tab === 'sfx') {
         if (globalSearch) globalSearch.style.display = 'flex';
         sfxMainCatEl.style.display = 'block';
         sfxCountBar.style.display = 'block';
@@ -1792,3 +1804,112 @@ function generateFakePeaks(seed) {
         return Math.max(8, Math.min(100, Math.round((v / 75) * 90) + 8));
     });
 }
+
+// ─────────────────────────────────────────────────
+// LEGENDAS — CAPTIONS VIRAIS
+// ─────────────────────────────────────────────────
+let captionsLoaded = false;
+let captionsData = [];
+
+async function loadCaptions() {
+    if (captionsLoaded) return;
+    const grid = document.getElementById('captionGrid');
+    if (!grid) return;
+    grid.innerHTML = '<div class="state-box"><div class="spinner"></div><p>Carregando legendas...</p></div>';
+    try {
+        const jsonPath = window.nodeAPI.path.join(__dirname, 'Legendas', 'captions_virais.json');
+        const dataStr = window.nodeAPI.fs.readFileSync(jsonPath, 'utf8');
+        captionsData = JSON.parse(dataStr);
+        captionsLoaded = true;
+        buildLegendasMainCatBar();
+        renderCaptions();
+        const countSpan = document.getElementById('captionCountNum');
+        if (countSpan) countSpan.textContent = captionsData.length;
+    } catch (e) {
+        grid.innerHTML = '<div class="state-box"><p style="color:#ff6b8a">Erro ao carregar legendas. Verifique a instalação.</p></div>';
+        console.error('Erro loadCaptions:', e);
+    }
+}
+
+function buildLegendasMainCatBar() {
+    const tabs = document.querySelectorAll('#legendasMainCats .sfx-main-tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            // Como por enquanto só temos 'Captions Virais', não filtramos
+            // No futuro: activeLegendasCat = tab.dataset.cat;
+        });
+    });
+}
+
+function renderCaptions() {
+    const grid = document.getElementById('captionGrid');
+    if (!grid) return;
+    if (!captionsData.length) {
+        grid.innerHTML = '<div class="state-box"><p>Nenhuma legenda encontrada.</p></div>';
+        return;
+    }
+    grid.innerHTML = captionsData.map(cap => `
+        <div class="caption-card">
+            <img class="caption-gif" src="${cap.gif_url}" alt="${cap.name}" loading="lazy"
+                 onerror="this.style.background='#1a1a2e';this.alt='Preview indisponível';">
+            <div class="caption-info">
+                <div class="caption-name">${cap.name}</div>
+                <button class="caption-apply-btn" onclick="applyCaption(${cap.id}, this)">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Importar
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function applyCaption(captionId, btn) {
+    const cap = captionsData.find(c => c.id === captionId);
+    if (!cap) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width:10px;height:10px;border-width:2px;"></div> Importando...';
+
+    try {
+        // Build path to the .setting file inside the plugin folder
+        const pluginBase = window.nodeAPI.path.join(
+            'C:\\ProgramData', 'Blackmagic Design', 'DaVinci Resolve',
+            'Support', 'Workflow Integration Plugins', 'com.editormaster.premium.v1',
+            'Legendas', 'CaptionsVirais'
+        );
+        // Mac path fallback
+        const homeDir = window.nodeAPI.os.homedir();
+        const macBase = window.nodeAPI.path.join(
+            homeDir, 'Library', 'Application Support',
+            'Blackmagic Design', 'DaVinci Resolve',
+            'Workflow Integration Plugins', 'com.editormaster.premium.v1',
+            'Legendas', 'CaptionsVirais'
+        );
+        const base = window.nodeAPI.fs.existsSync(pluginBase) ? pluginBase : macBase;
+        const presetPath = window.nodeAPI.path.join(base, cap.preset_file);
+
+        const result = await window.resolveAPI.applyCaption(presetPath);
+        if (result && result.startsWith('SUCCESS')) {
+            const msg = result.replace('SUCCESS:', '').trim();
+            btn.innerHTML = '✅ Adicionado!';
+            showToast(`✅ "${cap.name}" ${msg}`, 'success');
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Importar';
+            }, 4000);
+        } else {
+            throw new Error(result || 'Erro desconhecido');
+        }
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = '⚠️ Tentar novamente';
+        showToast('Erro ao instalar preset: ' + e.message, 'error');
+    }
+}
+

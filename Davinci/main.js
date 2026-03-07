@@ -74,6 +74,58 @@ function registerHandlers() {
     ipcMain.handle('resolve:importMedia', importMediaToTimeline);
     ipcMain.handle('resolve:cleanup', async () => WorkflowIntegration.CleanUp());
 
+    // ── Apply Caption Preset ──────────────────────────────────
+    ipcMain.handle('resolve:applyCaption', async (event, presetSrcPath) => {
+        try {
+            const os = require('os');
+            const platform = process.platform;
+            let destDir;
+            if (platform === 'darwin') {
+                destDir = path.join(os.homedir(), 'Library', 'Application Support',
+                    'Blackmagic Design', 'DaVinci Resolve', 'Fusion', 'Templates', 'Edit', 'Titles', 'EditLab Pro');
+            } else {
+                destDir = path.join('C:\\ProgramData', 'Blackmagic Design', 'DaVinci Resolve',
+                    'Support', 'Fusion', 'Templates', 'Edit', 'Titles', 'EditLab Pro');
+            }
+            if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+            const destFile = path.join(destDir, path.basename(presetSrcPath));
+
+            // 1. Cópia física para a pasta caso não esteja instalado
+            fs.copyFileSync(presetSrcPath, destFile);
+
+            // 2. Tentar inserir na timeline via API
+            const resolve = await initResolve();
+            if (resolve) {
+                const pm = await resolve.GetProjectManager();
+                const project = await pm.GetCurrentProject();
+                if (project) {
+                    const timeline = await project.GetCurrentTimeline();
+                    if (timeline) {
+                        const titleName = path.parse(presetSrcPath).name;
+                        let item = null;
+
+                        try {
+                            // Tenta inserir apenas com o nome base (o DaVinci já indexa os titles instalados)
+                            item = await timeline.InsertFusionTitleIntoTimeline(titleName);
+                        } catch (err) {
+                            console.error("Falha ao inserir timeline:", err);
+                        }
+
+                        // Se falhou (primeira instalação da sessão), o DaVinci não achou na memória dele
+                        if (item) {
+                            return `SUCCESS:Adicionado à Timeline do DaVinci!`;
+                        } else {
+                            return `SUCCESS:Copiado para Titles > EditLab Pro. Se estiver usando pela primeira vez, Reinicie o DaVinci para que ele apareça.`;
+                        }
+                    }
+                }
+            }
+            return `SUCCESS:Copiado para Effects > Titles > EditLab Pro na aba Edit do DaVinci.`;
+        } catch (e) {
+            return `ERROR:${e.message}`;
+        }
+    });
+
     // Window controls
     ipcMain.on('window-minimize', () => mainWindow.minimize());
     ipcMain.on('window-maximize', () => {
@@ -82,6 +134,7 @@ function registerHandlers() {
     });
     ipcMain.on('window-close', () => mainWindow.close());
 }
+
 
 function createWindow() {
     mainWindow = new BrowserWindow({

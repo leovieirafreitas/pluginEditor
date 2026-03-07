@@ -97,6 +97,17 @@ cp "$FOUND_NODE" "$DEST/WorkflowIntegration.node"
 echo "[OK] Arquivos copiados!"
 
 # ─────────────────────────────────────────────
+# INSTALA PRESETS DE LEGENDAS VIRAIS
+# ─────────────────────────────────────────────
+PRESET_DEST="$HOME/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Templates/Edit/Titles/EditLab Pro"
+mkdir -p "$PRESET_DEST"
+if ls "$SOURCE/Legendas/CaptionsVirais/"*.setting 1> /dev/null 2>&1; then
+    echo ""
+    echo "[-] Instalando presets de legendas virais (Titles)..."
+    cp "$SOURCE/Legendas/CaptionsVirais/"*.setting "$PRESET_DEST/"
+fi
+
+# ─────────────────────────────────────────────
 # INSTALA DEPENDÊNCIAS
 # ─────────────────────────────────────────────
 echo ""

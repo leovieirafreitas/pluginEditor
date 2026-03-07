@@ -10,3 +10,8 @@ log_build_v2.txt
 BUILDER.js
 build_v2.bat
 .debug
+
+# Dependencies & build output
+node_modules/
+dist/
+*.node

@@ -1564,6 +1564,14 @@
                 </svg>
                 SFX <span class="tab-count" id="sfxTabCount">0</span>
             </div>
+            <div class="tab" data-tab="legendas">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                    <path d="M7 10h10M7 14h6"></path>
+                </svg>
+                Legendas
+            </div>
         </div>
 
         <!-- SEARCH -->
@@ -1591,6 +1599,15 @@
             <div class="sfx-cat-row" id="musicMainCatRow"></div>
         </div>
 
+        <!-- LEGENDAS MAIN CATEGORY TABS -->
+        <div id="legendasMainCats" style="display:none;">
+            <div class="sfx-cat-row" id="legendasCatRow">
+                <div class="sfx-main-tab active" data-cat="all">TODOS</div>
+                <div class="sfx-main-tab" data-cat="captionsvirais">CAPTIONS VIRAIS</div>
+                <!-- Futuras abas de legendas -> <div class="sfx-main-tab" data-cat="outros">OUTROS</div> -->
+            </div>
+        </div>
+
         <!-- FILTER PILLS (shared by SFX & Music) -->
         <div class="filter-row" id="filterRow">
             <div class="filter-pill active" data-filter="all">Todos</div>
@@ -1606,6 +1623,93 @@
             <div class="sfx-count-text"># <span id="musicCountNum">0</span> músicas encontradas</div>
         </div>
 
+        <!-- LEGENDAS COUNT -->
+        <div id="legendasCountBar" style="display:none;">
+            <div class="sfx-count-text"># <span id="captionCountNum">0</span> assets encontrados</div>
+        </div>
+
+        <!-- LEGENDAS CSS -->
+        <style>
+            .caption-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                padding: 12px;
+            }
+
+            .caption-card {
+                background: var(--bg-card);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                overflow: hidden;
+                transition: all .2s;
+                cursor: default;
+            }
+
+            .caption-card:hover {
+                border-color: var(--accent);
+                transform: translateY(-2px);
+                box-shadow: 0 8px 24px rgba(124, 109, 250, .15);
+            }
+
+            .caption-gif {
+                width: 100%;
+                aspect-ratio: 16/9;
+                object-fit: cover;
+                display: block;
+                background: #111;
+            }
+
+            .caption-info {
+                padding: 8px 10px 10px;
+            }
+
+            .caption-name {
+                font-size: 10px;
+                font-weight: 700;
+                color: var(--text);
+                margin-bottom: 8px;
+            }
+
+            .caption-apply-btn {
+                width: 100%;
+                padding: 7px;
+                background: rgba(124, 109, 250, .12);
+                border: 1px solid rgba(124, 109, 250, .25);
+                border-radius: 7px;
+                color: var(--accent);
+                font-size: 10px;
+                font-weight: 700;
+                font-family: inherit;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                transition: all .2s;
+            }
+
+            .caption-apply-btn:hover {
+                background: var(--accent);
+                color: #fff;
+                border-color: var(--accent);
+            }
+
+            .caption-apply-btn:disabled {
+                opacity: .5;
+                cursor: not-allowed;
+            }
+
+            .captions-header {
+                padding: 10px 12px 4px;
+                font-size: 9px;
+                font-weight: 700;
+                color: var(--text3);
+                text-transform: uppercase;
+                letter-spacing: .8px;
+            }
+        </style>
+
         <!-- CONTENT -->
         <div class="content-area" id="contentArea">
             <div id="videosContent" class="tab-pane" style="display: block;">
@@ -1613,6 +1717,14 @@
                 <div class="state-box">
                     <div class="spinner"></div>
                     <p>Carregando filmes...</p>
+                </div>
+            </div>
+            <div id="legendasContent" class="tab-pane" style="display: none;">
+                <div class="caption-grid" id="captionGrid">
+                    <div class="state-box">
+                        <div class="spinner"></div>
+                        <p>Carregando legendas...</p>
+                    </div>
                 </div>
             </div>
             <div id="musicContent" class="tab-pane" style="display: none;">

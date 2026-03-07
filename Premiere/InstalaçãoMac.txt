@@ -1,0 +1,10 @@
+Instrução para o cliente Mac do Premiere:
+Extraia o ZIP
+Abra o Terminal
+Arraste o arquivo 
+
+Instalar_Plugin_Mac.sh
+ para dentro do Terminal
+Pressione Enter
+Digite a senha do Mac se pedir
+Abra o Premiere Pro → Window → Extensions → EditLab Pro ✅

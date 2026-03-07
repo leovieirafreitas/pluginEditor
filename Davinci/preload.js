@@ -9,6 +9,7 @@ const { URL } = require('url');
 // APIs do Resolve
 window.resolveAPI = {
     importMedia: (filePath) => ipcRenderer.invoke('resolve:importMedia', filePath),
+    applyCaption: (presetPath) => ipcRenderer.invoke('resolve:applyCaption', presetPath),
     cleanup: () => ipcRenderer.invoke('resolve:cleanup')
 };
 

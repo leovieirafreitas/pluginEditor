@@ -48,6 +48,21 @@ set PLUGIN_ID=com.editormaster.premium.v1
 set DEST=%ProgramData%\Blackmagic Design\DaVinci Resolve\Support\Workflow Integration Plugins\%PLUGIN_ID%
 set SOURCE=%~dp0
 
+:: ─────────────────────────────────────────────
+:: VERIFICA SE O DAVINCI ESTÁ ABERTO
+:: ─────────────────────────────────────────────
+:check_resolve
+tasklist /FI "IMAGENAME eq Resolve.exe" 2>NUL | find /I /N "Resolve.exe" >NUL
+if "%ERRORLEVEL%"=="0" (
+    echo.
+    echo  [!] AVISO: O DaVinci Resolve esta aberto.
+    echo      Para instalar o plugin, voce precisa fechar o DaVinci Resolve.
+    echo.
+    echo  Aguardando voce fechar o DaVinci Resolve... ^(Pressione qualquer tecla para verificar novamente^)
+    pause >nul
+    goto check_resolve
+)
+
 echo.
 echo  [2/4] Instalando plugin na pasta do DaVinci Resolve...
 echo        Destino: %DEST%
@@ -78,6 +93,16 @@ if exist "%DEST%\node_modules\electron-builder" rmdir /S /Q "%DEST%\node_modules
 if exist "%DEST%\Instalar_Plugin.bat" del /Q "%DEST%\Instalar_Plugin.bat" >nul 2>&1
 
 echo  [OK] Arquivos copiados com sucesso!
+
+:: ─────────────────────────────────────────────
+:: INSTALA PRESETS DE LEGENDAS VIRAIS
+:: ─────────────────────────────────────────────
+set PRESET_DEST=%ProgramData%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Templates\Edit\Titles\EditLab Pro
+if not exist "%PRESET_DEST%" mkdir "%PRESET_DEST%" >nul 2>&1
+if exist "%SOURCE%\Legendas\CaptionsVirais\*.setting" (
+    echo  [-] Instalando presets de legendas virais...
+    xcopy /Y /Q "%SOURCE%\Legendas\CaptionsVirais\*.setting" "%PRESET_DEST%\" >nul 2>&1
+)
 
 :: ─────────────────────────────────────────────
 :: INSTALA DEPENDÊNCIAS (node_modules)
