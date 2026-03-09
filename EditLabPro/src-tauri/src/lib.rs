@@ -70,7 +70,14 @@ fn activate_davinci(app: AppHandle) -> Result<String, String> {
                 // NPM INSTALL
                 let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
                 let arg = if cfg!(target_os = "windows") { "/C" } else { "-c" };
-                std::process::Command::new(shell).args(&[arg, "npm install --production --silent"]).current_dir(&dest).status().ok();
+                
+                let mut cmd = std::process::Command::new(shell);
+                cmd.args(&[arg, "npm install --production --silent"]).current_dir(&dest);
+                
+                #[cfg(windows)]
+                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                
+                cmd.status().ok();
             }
         }
     }
@@ -169,7 +176,14 @@ fn activate_premiere(app: AppHandle) -> Result<String, String> {
                 success = true;
                 let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
                 let arg = if cfg!(target_os = "windows") { "/C" } else { "-c" };
-                std::process::Command::new(shell).args(&[arg, "npm install --production --silent"]).current_dir(&dest).status().ok();
+                
+                let mut cmd = std::process::Command::new(shell);
+                cmd.args(&[arg, "npm install --production --silent"]).current_dir(&dest);
+                
+                #[cfg(windows)]
+                cmd.creation_flags(0x08000000);
+                
+                cmd.status().ok();
             }
         }
     }
