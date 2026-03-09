@@ -1,9 +1,12 @@
 use tauri::{AppHandle, Manager};
 use std::fs;
 use std::path::PathBuf;
+#[cfg(windows)]
 use winreg::enums::*;
+#[cfg(windows)]
 use winreg::RegKey;
 use fs_extra::dir::{copy, CopyOptions};
+#[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
 fn get_resource_path(app: &AppHandle, folder: &str) -> Result<PathBuf, String> {
@@ -148,28 +151,41 @@ fn activate_premiere(app: AppHandle) -> Result<String, String> {
 
 #[tauri::command]
 fn deactivate_davinci() -> Result<String, String> {
-    let programdata = std::env::var("ProgramData").map_err(|_| "Erro ProgramData")?;
-    let davinci_base = PathBuf::from(&programdata).join("Blackmagic Design").join("DaVinci Resolve");
+    let davinci_base = if cfg!(target_os = "windows") {
+        let programdata = std::env::var("ProgramData").map_err(|_| "Erro ProgramData")?;
+        PathBuf::from(&programdata).join("Blackmagic Design").join("DaVinci Resolve")
+    } else {
+        let home = std::env::var("HOME").map_err(|_| "Erro HOME")?;
+        PathBuf::from(&home).join("Library").join("Application Support").join("Blackmagic Design").join("DaVinci Resolve")
+    };
     
     // Remover Plugin
-    let plugin_path = davinci_base.join("Support").join("Workflow Integration Plugins").join("com.editormaster.premium.v1");
+    let mut plugin_path = davinci_base.clone();
+    if cfg!(target_os = "windows") {
+        plugin_path.push("Support");
+    }
+    plugin_path.push("Workflow Integration Plugins");
+    plugin_path.push("com.editormaster.premium.v1");
+
     if plugin_path.exists() {
         fs::remove_dir_all(&plugin_path).map_err(|e| e.to_string())?;
     }
 
     // Remover Presets de Legenda
-    let preset_path = davinci_base.join("Support").join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro");
-    if preset_path.exists() {
-        fs::remove_dir_all(&preset_path).ok(); // ok() pois se falhar não é crítico
+    let preset_paths = vec![
+        davinci_base.join("Support").join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro"),
+        davinci_base.join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro")
+    ];
+
+    #[cfg(target_os = "windows")]
+    if let Ok(appdata) = std::env::var("AppData") {
+        let p = PathBuf::from(&appdata).join("Blackmagic Design").join("DaVinci Resolve")
+            .join("Support").join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro");
+        if p.exists() { fs::remove_dir_all(&p).ok(); }
     }
 
-    // Remover do AppData também
-    if let Ok(appdata) = std::env::var("AppData") {
-        let preset_appdata = PathBuf::from(&appdata).join("Blackmagic Design").join("DaVinci Resolve")
-            .join("Support").join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro");
-        if preset_appdata.exists() {
-            fs::remove_dir_all(&preset_appdata).ok();
-        }
+    for p in preset_paths {
+        if p.exists() { fs::remove_dir_all(&p).ok(); }
     }
 
     Ok("Integração DaVinci removida".into())
@@ -177,8 +193,13 @@ fn deactivate_davinci() -> Result<String, String> {
 
 #[tauri::command]
 fn deactivate_premiere() -> Result<String, String> {
-    let appdata = std::env::var("AppData").map_err(|_| "Erro AppData")?;
-    let dest_plugin = PathBuf::from(appdata).join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1");
+    let dest_plugin = if cfg!(target_os = "windows") {
+        let appdata = std::env::var("AppData").map_err(|_| "Erro AppData")?;
+        PathBuf::from(appdata).join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1")
+    } else {
+        let home = std::env::var("HOME").map_err(|_| "Erro HOME")?;
+        PathBuf::from(&home).join("Library").join("Application Support").join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1")
+    };
     
     if dest_plugin.exists() {
         fs::remove_dir_all(&dest_plugin).map_err(|e| e.to_string())?;
@@ -193,14 +214,28 @@ fn check_status() -> Result<(bool, bool), String> {
     let mut premiere = false;
 
     // Check DaVinci
-    if let Ok(programdata) = std::env::var("ProgramData") {
-        let p = PathBuf::from(programdata).join("Blackmagic Design").join("DaVinci Resolve").join("Support").join("Workflow Integration Plugins").join("com.editormaster.premium.v1");
+    let davinci_base = if cfg!(target_os = "windows") {
+        std::env::var("ProgramData").ok().map(|s| PathBuf::from(s).join("Blackmagic Design").join("DaVinci Resolve"))
+    } else {
+        std::env::var("HOME").ok().map(|s| PathBuf::from(s).join("Library").join("Application Support").join("Blackmagic Design").join("DaVinci Resolve"))
+    };
+
+    if let Some(base) = davinci_base {
+        let mut p = base;
+        if cfg!(target_os = "windows") { p.push("Support"); }
+        p.push("Workflow Integration Plugins");
+        p.push("com.editormaster.premium.v1");
         davinci = p.exists();
     }
 
     // Check Premiere
-    if let Ok(appdata) = std::env::var("AppData") {
-        let p = PathBuf::from(appdata).join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1");
+    let premiere_base = if cfg!(target_os = "windows") {
+        std::env::var("AppData").ok().map(|s| PathBuf::from(s).join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1"))
+    } else {
+        std::env::var("HOME").ok().map(|s| PathBuf::from(s).join("Library").join("Application Support").join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1"))
+    };
+
+    if let Some(p) = premiere_base {
         premiere = p.exists();
     }
 
