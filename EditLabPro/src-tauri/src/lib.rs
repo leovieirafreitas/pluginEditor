@@ -34,72 +34,91 @@ fn activate_davinci(app: AppHandle) -> Result<String, String> {
         key.set_value("EnableWorkflowIntegration", &1u32).map_err(|e| e.to_string())?;
     }
 
-    // 2. Caminhos Base
-    let davinci_base = if cfg!(target_os = "windows") {
-        let programdata = std::env::var("ProgramData").map_err(|_| "Erro ProgramData")?;
-        PathBuf::from(&programdata).join("Blackmagic Design").join("DaVinci Resolve")
-    } else {
-        let home = std::env::var("HOME").map_err(|_| "Erro HOME")?;
-        PathBuf::from(&home).join("Library").join("Application Support").join("Blackmagic Design").join("DaVinci Resolve")
-    };
-
-    // --- INSTALAÇÃO DO PLUGIN ---
-    let mut dest_plugin = davinci_base.clone();
+    // 2. Coletar destinos (Mac/Win)
+    let mut final_paths = Vec::new();
+    
     if cfg!(target_os = "windows") {
-        dest_plugin.push("Support");
+        if let Ok(pd) = std::env::var("ProgramData") {
+            final_paths.push(PathBuf::from(pd).join("Blackmagic Design").join("DaVinci Resolve").join("Support").join("Workflow Integration Plugins"));
+        }
+    } else {
+        // macOS: Caminhos possíveis
+        let home = std::env::var("HOME").unwrap_or_default();
+        
+        // Caminho do Sistema (Exige privilégios, mas tentamos)
+        final_paths.push(PathBuf::from("/Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
+        
+        // Caminho do Usuário (O que o usuário mostrou no print)
+        final_paths.push(PathBuf::from(&home).join("Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
+        
+        // Caminho App Store (Sandbox)
+        final_paths.push(PathBuf::from(&home).join("Library/Containers/com.blackmagic-design.DaVinciResolve/Data/Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
     }
-    dest_plugin.push("Workflow Integration Plugins");
-    dest_plugin.push("com.editormaster.premium.v1");
 
     let src_davinci = get_resource_path(&app, "Davinci")?;
-    
-    if dest_plugin.exists() { fs::remove_dir_all(&dest_plugin).ok(); }
-    fs::create_dir_all(&dest_plugin).map_err(|e| e.to_string())?;
-    
-    let mut options = CopyOptions::new();
-    options.content_only = true;
-    options.overwrite = true;
-    copy(&src_davinci, &dest_plugin, &options).map_err(|e| e.to_string())?;
+    let mut success_count = 0;
 
-    // --- NPM INSTALL ---
-    let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
-    let arg = if cfg!(target_os = "windows") { "/C" } else { "-c" };
-    
-    std::process::Command::new(shell)
-        .args(&[arg, "npm install --production --silent"])
-        .current_dir(&dest_plugin)
-        .status()
-        .ok();
-
-    // --- INSTALAÇÃO DAS LEGENDAS ---
-    let mut preset_paths = vec![
-        davinci_base.join("Support").join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro"),
-        davinci_base.join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro")
-    ];
-
-    #[cfg(target_os = "windows")]
-    if let Ok(appdata) = std::env::var("AppData") {
-        preset_paths.push(PathBuf::from(&appdata).join("Blackmagic Design").join("DaVinci Resolve").join("Support").join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro"));
+    for base_path in final_paths {
+        let dest = base_path.join("com.editormaster.premium.v1");
+        if dest.exists() { fs::remove_dir_all(&dest).ok(); }
+        if fs::create_dir_all(&dest).is_ok() {
+            let mut options = CopyOptions::new();
+            options.content_only = true;
+            options.overwrite = true;
+            if copy(&src_davinci, &dest, &options).is_ok() {
+                success_count += 1;
+                // NPM INSTALL
+                let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
+                let arg = if cfg!(target_os = "windows") { "/C" } else { "-c" };
+                std::process::Command::new(shell).args(&[arg, "npm install --production --silent"]).current_dir(&dest).status().ok();
+            }
+        }
     }
 
-    let src_legendas = src_davinci.join("Legendas").join("CaptionsVirais");
-    if src_legendas.exists() {
-        for preset_dest in preset_paths {
-            if !preset_dest.exists() { fs::create_dir_all(&preset_dest).ok(); }
+    // --- INSTALAÇÃO DAS LEGENDAS (PRESETS) ---
+    // Repetimos uma lógica similar para as legendas, focando no User Library para garantir que apareça
+    if cfg!(target_os = "macos") {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let preset_dest = PathBuf::from(&home).join("Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Templates/Edit/Titles/EditLab Pro");
+        let src_legendas = src_davinci.join("Legendas").join("CaptionsVirais");
+        
+        if src_legendas.exists() {
+            fs::create_dir_all(&preset_dest).ok();
             if let Ok(entries) = fs::read_dir(&src_legendas) {
                 for entry in entries.flatten() {
                     let path = entry.path();
                     if path.extension().and_then(|s| s.to_str()) == Some("setting") {
-                        if let Some(name) = path.file_name() {
-                            fs::copy(&path, preset_dest.join(name)).ok();
-                        }
+                        if let Some(name) = path.file_name() { fs::copy(&path, preset_dest.join(name)).ok(); }
+                    }
+                }
+            }
+        }
+    } else {
+        // Windows legas presets logic
+        let programdata = std::env::var("ProgramData").unwrap_or_default();
+        let appdata = std::env::var("AppData").unwrap_or_default();
+        let paths = vec![
+            PathBuf::from(programdata).join("Blackmagic Design/DaVinci Resolve/Support/Fusion/Templates/Edit/Titles/EditLab Pro"),
+            PathBuf::from(appdata).join("Blackmagic Design/DaVinci Resolve/Support/Fusion/Templates/Edit/Titles/EditLab Pro")
+        ];
+        let src_legendas = src_davinci.join("Legendas").join("CaptionsVirais");
+        for p in paths {
+            fs::create_dir_all(&p).ok();
+            if let Ok(entries) = fs::read_dir(&src_legendas) {
+                for entry in entries.flatten() {
+                    if entry.path().extension().and_then(|s| s.to_str()) == Some("setting") {
+                        fs::copy(entry.path(), p.join(entry.file_name())).ok();
                     }
                 }
             }
         }
     }
 
-    Ok("EditLab Pro instalado".into())
+    if success_count > 0 {
+        Ok("EditLab Pro instalado com sucesso".into())
+    } else {
+        Err("Não foi possível criar as pastas de instalação. Verifique as permissões.".into())
+    }
 }
 
 #[tauri::command]
@@ -110,82 +129,87 @@ fn activate_premiere(app: AppHandle) -> Result<String, String> {
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         for v in 7..14 {
             let path = format!("Software\\Adobe\\CSXS.{}", v);
-            if let Ok((key, _)) = hkcu.create_subkey(&path) {
-                let _ = key.set_value("PlayerDebugMode", &"1".to_string());
+            if let Ok((key, _)) = hkcu.create_subkey(&path) { let _ = key.set_value("PlayerDebugMode", &"1".to_string()); }
+        }
+    }
+
+    // 1. Debug Mode (macOS)
+    #[cfg(target_os = "macos")]
+    {
+        for v in 7..14 {
+            let cmd = format!("defaults write com.adobe.CSXS.{} PlayerDebugMode 1", v);
+            std::process::Command::new("sh").args(&["-c", &cmd]).status().ok();
+        }
+    }
+
+    // 2. Destinos
+    let mut final_paths = Vec::new();
+    if cfg!(target_os = "windows") {
+        if let Ok(appdata) = std::env::var("AppData") {
+            final_paths.push(PathBuf::from(appdata).join("Adobe").join("CEP").join("extensions"));
+        }
+    } else {
+        let home = std::env::var("HOME").unwrap_or_default();
+        final_paths.push(PathBuf::from("/Library/Application Support/Adobe/CEP/extensions"));
+        final_paths.push(PathBuf::from(&home).join("Library/Application Support/Adobe/CEP/extensions"));
+    }
+
+    let src_root = get_resource_path(&app, "Premiere")?;
+    let src = src_root.join("com.editormaster.premium.v1");
+    let mut success = false;
+
+    for base in final_paths {
+        let dest = base.join("com.editormaster.premium.v1");
+        if dest.exists() { fs::remove_dir_all(&dest).ok(); }
+        if fs::create_dir_all(&dest).is_ok() {
+            let mut options = CopyOptions::new();
+            options.content_only = true;
+            options.overwrite = true;
+            if copy(&src, &dest, &options).is_ok() {
+                success = true;
+                let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
+                let arg = if cfg!(target_os = "windows") { "/C" } else { "-c" };
+                std::process::Command::new(shell).args(&[arg, "npm install --production --silent"]).current_dir(&dest).status().ok();
             }
         }
     }
 
-    // 2. Destino
-    let dest_plugin = if cfg!(target_os = "windows") {
-        let appdata = std::env::var("AppData").map_err(|_| "Erro AppData")?;
-        PathBuf::from(appdata).join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1")
+    if success {
+        Ok("Adobe Premiere Pro instalado".into())
     } else {
-        let home = std::env::var("HOME").map_err(|_| "Erro HOME")?;
-        PathBuf::from(&home).join("Library").join("Application Support").join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1")
-    };
-
-    let src_root = get_resource_path(&app, "Premiere")?;
-    let src = src_root.join("com.editormaster.premium.v1");
-
-    if dest_plugin.exists() { fs::remove_dir_all(&dest_plugin).ok(); }
-    fs::create_dir_all(&dest_plugin).map_err(|e| e.to_string())?;
-    
-    let mut options = CopyOptions::new();
-    options.content_only = true;
-    options.overwrite = true;
-    copy(&src, &dest_plugin, &options).map_err(|e| e.to_string())?;
-
-    // --- NPM INSTALL ---
-    let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
-    let arg = if cfg!(target_os = "windows") { "/C" } else { "-c" };
-    
-    std::process::Command::new(shell)
-        .args(&[arg, "npm install --production --silent"])
-        .current_dir(&dest_plugin)
-        .status()
-        .ok();
-
-    Ok("Adobe Premiere Pro instalado".into())
+        Err("Erro ao criar pastas do Premiere. Verifique permissões.".into())
+    }
 }
 
 #[tauri::command]
 fn deactivate_davinci() -> Result<String, String> {
-    let davinci_base = if cfg!(target_os = "windows") {
-        let programdata = std::env::var("ProgramData").map_err(|_| "Erro ProgramData")?;
-        PathBuf::from(&programdata).join("Blackmagic Design").join("DaVinci Resolve")
-    } else {
-        let home = std::env::var("HOME").map_err(|_| "Erro HOME")?;
-        PathBuf::from(&home).join("Library").join("Application Support").join("Blackmagic Design").join("DaVinci Resolve")
-    };
-    
-    // Remover Plugin
-    let mut plugin_path = davinci_base.clone();
+    let mut final_paths = Vec::new();
     if cfg!(target_os = "windows") {
-        plugin_path.push("Support");
+        if let Ok(pd) = std::env::var("ProgramData") {
+            final_paths.push(PathBuf::from(pd).join("Blackmagic Design/DaVinci Resolve/Support/Workflow Integration Plugins"));
+        }
+    } else {
+        let home = std::env::var("HOME").unwrap_or_default();
+        final_paths.push(PathBuf::from("/Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
+        final_paths.push(PathBuf::from(&home).join("Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
+        final_paths.push(PathBuf::from(&home).join("Library/Containers/com.blackmagic-design.DaVinciResolve/Data/Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
     }
-    plugin_path.push("Workflow Integration Plugins");
-    plugin_path.push("com.editormaster.premium.v1");
 
-    if plugin_path.exists() {
-        fs::remove_dir_all(&plugin_path).map_err(|e| e.to_string())?;
-    }
-
-    // Remover Presets de Legenda
-    let preset_paths = vec![
-        davinci_base.join("Support").join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro"),
-        davinci_base.join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro")
-    ];
-
-    #[cfg(target_os = "windows")]
-    if let Ok(appdata) = std::env::var("AppData") {
-        let p = PathBuf::from(&appdata).join("Blackmagic Design").join("DaVinci Resolve")
-            .join("Support").join("Fusion").join("Templates").join("Edit").join("Titles").join("EditLab Pro");
+    for base in final_paths {
+        let p = base.join("com.editormaster.premium.v1");
         if p.exists() { fs::remove_dir_all(&p).ok(); }
     }
 
-    for p in preset_paths {
+    // Remover Presets (Mac/Win)
+    if cfg!(target_os = "macos") {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let p = PathBuf::from(&home).join("Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Templates/Edit/Titles/EditLab Pro");
         if p.exists() { fs::remove_dir_all(&p).ok(); }
+    } else {
+        let pd = std::env::var("ProgramData").unwrap_or_default();
+        let ad = std::env::var("AppData").unwrap_or_default();
+        let _ = fs::remove_dir_all(PathBuf::from(pd).join("Blackmagic Design/DaVinci Resolve/Support/Fusion/Templates/Edit/Titles/EditLab Pro"));
+        let _ = fs::remove_dir_all(PathBuf::from(ad).join("Blackmagic Design/DaVinci Resolve/Support/Fusion/Templates/Edit/Titles/EditLab Pro"));
     }
 
     Ok("Integração DaVinci removida".into())
@@ -193,16 +217,20 @@ fn deactivate_davinci() -> Result<String, String> {
 
 #[tauri::command]
 fn deactivate_premiere() -> Result<String, String> {
-    let dest_plugin = if cfg!(target_os = "windows") {
-        let appdata = std::env::var("AppData").map_err(|_| "Erro AppData")?;
-        PathBuf::from(appdata).join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1")
+    let mut final_paths = Vec::new();
+    if cfg!(target_os = "windows") {
+        if let Ok(ad) = std::env::var("AppData") {
+            final_paths.push(PathBuf::from(ad).join("Adobe/CEP/extensions"));
+        }
     } else {
-        let home = std::env::var("HOME").map_err(|_| "Erro HOME")?;
-        PathBuf::from(&home).join("Library").join("Application Support").join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1")
-    };
-    
-    if dest_plugin.exists() {
-        fs::remove_dir_all(&dest_plugin).map_err(|e| e.to_string())?;
+        let home = std::env::var("HOME").unwrap_or_default();
+        final_paths.push(PathBuf::from("/Library/Application Support/Adobe/CEP/extensions"));
+        final_paths.push(PathBuf::from(&home).join("Library/Application Support/Adobe/CEP/extensions"));
+    }
+
+    for base in final_paths {
+        let p = base.join("com.editormaster.premium.v1");
+        if p.exists() { fs::remove_dir_all(&p).ok(); }
     }
 
     Ok("Integração Premiere removida".into())
@@ -213,30 +241,33 @@ fn check_status() -> Result<(bool, bool), String> {
     let mut davinci = false;
     let mut premiere = false;
 
-    // Check DaVinci
-    let davinci_base = if cfg!(target_os = "windows") {
-        std::env::var("ProgramData").ok().map(|s| PathBuf::from(s).join("Blackmagic Design").join("DaVinci Resolve"))
+    // DaVinci Status
+    let mut dv_paths = Vec::new();
+    if cfg!(target_os = "windows") {
+        if let Ok(pd) = std::env::var("ProgramData") { dv_paths.push(PathBuf::from(pd).join("Blackmagic Design/DaVinci Resolve/Support/Workflow Integration Plugins")); }
     } else {
-        std::env::var("HOME").ok().map(|s| PathBuf::from(s).join("Library").join("Application Support").join("Blackmagic Design").join("DaVinci Resolve"))
-    };
-
-    if let Some(base) = davinci_base {
-        let mut p = base;
-        if cfg!(target_os = "windows") { p.push("Support"); }
-        p.push("Workflow Integration Plugins");
-        p.push("com.editormaster.premium.v1");
-        davinci = p.exists();
+        let home = std::env::var("HOME").unwrap_or_default();
+        dv_paths.push(PathBuf::from("/Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
+        dv_paths.push(PathBuf::from(&home).join("Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
+        dv_paths.push(PathBuf::from(&home).join("Library/Containers/com.blackmagic-design.DaVinciResolve/Data/Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
     }
 
-    // Check Premiere
-    let premiere_base = if cfg!(target_os = "windows") {
-        std::env::var("AppData").ok().map(|s| PathBuf::from(s).join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1"))
-    } else {
-        std::env::var("HOME").ok().map(|s| PathBuf::from(s).join("Library").join("Application Support").join("Adobe").join("CEP").join("extensions").join("com.editormaster.premium.v1"))
-    };
+    for p in dv_paths {
+        if p.join("com.editormaster.premium.v1").exists() { davinci = true; break; }
+    }
 
-    if let Some(p) = premiere_base {
-        premiere = p.exists();
+    // Premiere Status
+    let mut pr_paths = Vec::new();
+    if cfg!(target_os = "windows") {
+        if let Ok(ad) = std::env::var("AppData") { pr_paths.push(PathBuf::from(ad).join("Adobe/CEP/extensions")); }
+    } else {
+        let home = std::env::var("HOME").unwrap_or_default();
+        pr_paths.push(PathBuf::from("/Library/Application Support/Adobe/CEP/extensions"));
+        pr_paths.push(PathBuf::from(&home).join("Library/Application Support/Adobe/CEP/extensions"));
+    }
+
+    for p in pr_paths {
+        if p.join("com.editormaster.premium.v1").exists() { premiere = true; break; }
     }
 
     Ok((davinci, premiere))
