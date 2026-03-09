@@ -311,6 +311,20 @@
 
         .sfx-cat-row {
             display: flex;
+            overflow-x: auto;
+            white-space: nowrap;
+            gap: 4px;
+            scrollbar-width: none;
+            /* Firefox */
+            -ms-overflow-style: none;
+            /* IE 10+ */
+            padding-bottom: 2px;
+            /* Prevent crop */
+        }
+
+        .sfx-cat-row::-webkit-scrollbar {
+            display: none;
+            /* Chrome/Safari */
         }
 
         .sfx-main-tab {
@@ -341,21 +355,18 @@
             display: flex;
             gap: 4px;
             padding: 7px 10px;
-            flex-wrap: wrap;
+            overflow-x: auto;
+            white-space: nowrap;
             border-bottom: 1px solid var(--border);
             flex-shrink: 0;
-            max-height: 96px;
-            overflow-y: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
 
         .filter-row::-webkit-scrollbar {
-            width: 2px;
+            display: none;
         }
 
-        .filter-row::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, .08);
-            border-radius: 2px;
-        }
 
         .filter-pill {
             padding: 3px 9px;
@@ -1570,7 +1581,7 @@
                     <rect x="2" y="5" width="20" height="14" rx="2"></rect>
                     <path d="M7 10h10M7 14h6"></path>
                 </svg>
-                Legendas
+                LEGENDAS
             </div>
         </div>
 
@@ -1602,8 +1613,7 @@
         <!-- LEGENDAS MAIN CATEGORY TABS -->
         <div id="legendasMainCats" style="display:none;">
             <div class="sfx-cat-row" id="legendasCatRow">
-                <div class="sfx-main-tab active" data-cat="all">TODOS</div>
-                <div class="sfx-main-tab" data-cat="captionsvirais">CAPTIONS VIRAIS</div>
+                <div class="sfx-main-tab active" data-cat="captionsvirais">CAPTIONS VIRAIS</div>
                 <!-- Futuras abas de legendas -> <div class="sfx-main-tab" data-cat="outros">OUTROS</div> -->
             </div>
         </div>
@@ -1621,11 +1631,6 @@
         <!-- MUSIC COUNT -->
         <div id="musicCountBar" style="display:none;">
             <div class="sfx-count-text"># <span id="musicCountNum">0</span> músicas encontradas</div>
-        </div>
-
-        <!-- LEGENDAS COUNT -->
-        <div id="legendasCountBar" style="display:none;">
-            <div class="sfx-count-text"># <span id="captionCountNum">0</span> assets encontrados</div>
         </div>
 
         <!-- LEGENDAS CSS -->

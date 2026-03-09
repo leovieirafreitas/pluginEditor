@@ -7,7 +7,7 @@ const API_DB_URL = 'https://apiserver.editlabpro.com.br/api/db';
 const SFX_MAIN_CATEGORIES = {
     'AMBIENCE': ['Aircraft Ambience', 'Beach & Ocean', 'Big Crowds', 'Big Spaces', 'Busy Spaces', 'City',
         'Desert', 'Earth', 'Elements of Nature', 'Extreme Weather', 'Field', 'Forest',
-        'Human Powered Ambience', 'Indoor Ambiences', 'Lakes & Rivers', 'Metropolis', 'Nature',
+        'Human Powered Ambience', 'Indoor Ambiences', 'Industrial', 'Lakes & Rivers', 'Metropolis', 'Nature',
         'Night', 'Outdoor', 'Parks', 'People in the City', 'Public Spaces',
         'Public Transportation Ambience', 'Quiet Crowds', 'Room Tones', 'Sea Vessels Ambience',
         'Skyline', 'Small Spaces', 'Storm', 'Suburbs & Countryside', 'Transport Ambience',
@@ -38,7 +38,12 @@ const SFX_MAIN_CATEGORIES = {
     'TRANSITIONS': ['Airy Impacts', 'Alerts', 'Boings and Dings', 'Cinematic Impacts', 'Crashes',
         'Downers', 'Drones', 'Epic Transitions', 'Hard Impacts', 'Horror Transitions', 'Impacts',
         'Interfaces', 'Long Impacts', 'Long Whooshes', 'Menus', 'Reverse', 'Risers',
-        'Scary Textures', 'Short Impacts', 'Short Whooshes', 'Technology', 'Tonal Whooshes', 'Whooshes']
+        'Scary Textures', 'Short Impacts', 'Short Whooshes', 'Technology', 'Tonal Whooshes', 'Whooshes'],
+    'CINEMA': ['Cinema'],
+    'GAMING': ['Gaming'],
+    'NATURE': ['Nature'],
+    'OFFICE': ['Office'],
+    'TOOLS': ['Tools']
 };
 
 let csInterface;
@@ -225,7 +230,6 @@ function switchTab(tab) {
     const legendasMainCatEl = document.getElementById('legendasMainCats');
     const sfxCountBar = document.getElementById('sfxCountBar');
     const musicCountBar = document.getElementById('musicCountBar');
-    const legendasCountBar = document.getElementById('legendasCountBar');
     const filterRow = document.getElementById('filterRow');
     const globalSearch = document.querySelector('.search-bar');
     const selYear = document.getElementById('clipcafeYear');
@@ -236,14 +240,12 @@ function switchTab(tab) {
     if (legendasMainCatEl) legendasMainCatEl.style.display = 'none';
     sfxCountBar.style.display = 'none';
     musicCountBar.style.display = 'none';
-    if (legendasCountBar) legendasCountBar.style.display = 'none';
     filterRow.style.display = 'none';
 
     if (tab === 'legendas') {
         if (globalSearch) globalSearch.style.display = 'flex';
         if (selYear) selYear.style.display = 'none';
         if (legendasMainCatEl) legendasMainCatEl.style.display = 'block';
-        if (legendasCountBar) legendasCountBar.style.display = 'block';
         loadCaptions();
         return;
     } else if (tab === 'sfx') {
@@ -623,7 +625,7 @@ function renderClipGridPaginated(clips, movie, page) {
             <div class="clip-scene-thumb" style="position:relative; background:#111; overflow:hidden; cursor:pointer;">
                 <img
                     class="scene-thumb-img"
-                    src="${c.thumbUrl}"
+                    src="${c.thumbUrl}?t=${Date.now()}"
                     onload="this.style.opacity='1'; const spin = this.parentElement.querySelector('.clip-scene-spinner'); if(spin) spin.style.display='none';"
                     onerror="this.style.opacity='0.2'; const spin = this.parentElement.querySelector('.clip-scene-spinner'); if(spin) spin.style.display='none';"
                     style="width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; opacity:0; transition: opacity 0.5s ease;"
@@ -690,7 +692,7 @@ async function openClipPreviewLocal(videoUrl, title) {
             </div>
             <div id="clipPreviewContent" style="width:100%; background:#000; min-height:220px; display:flex; align-items:center; justify-content:center; position:relative;">
                 <div id="clipPreviewSpinner" class="spinner" style="position:absolute; z-index:10;"></div>
-                <video id="clipPreviewVideo" src="${videoUrl}" controls autoplay preload="metadata" style="width:100%; height:auto; display:block; max-height:70vh; z-index:20; position:relative;"></video>
+                <video id="clipPreviewVideo" src="${videoUrl}?t=${Date.now()}" controls autoplay preload="metadata" style="width:100%; height:auto; display:block; max-height:70vh; z-index:20; position:relative;"></video>
             </div>
         </div>
     `;
@@ -936,16 +938,20 @@ async function loadMusic(page = 0) {
         }
 
         const data = await res.json();
-        const mapped = data.map(item => ({
-            id: item.id,
-            titulo: item.titulo || 'Sem título',
-            artista: item.artista || '',
-            categorias: Array.isArray(item.categorias) ? item.categorias : [],
-            duracao: item.duracao || 0,
-            capa: item.capa || '',
-            picos: Array.isArray(item.picos) ? item.picos : null,
-            url: item.Cloud_R2_url || ''
-        }));
+        const mapped = data.map(item => {
+            let r2Url = item.Cloud_R2_url || '';
+            if (r2Url && !r2Url.startsWith('http')) r2Url = 'https://' + r2Url;
+            return {
+                id: item.id,
+                titulo: item.titulo || 'Sem título',
+                artista: item.artista || '',
+                categorias: Array.isArray(item.categorias) ? item.categorias : [],
+                duracao: item.duracao || 0,
+                capa: item.capa || '',
+                picos: Array.isArray(item.picos) ? item.picos : null,
+                url: r2Url
+            };
+        });
 
         if (page === 0) {
             allMusic = mapped;
@@ -986,6 +992,7 @@ function buildMusicMainCatBar() {
         document.getElementById('filterRow').style.display = 'none';
         highlightMusicMainCat('all');
         loadMusic(0);
+        allTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     });
     row.appendChild(allTab);
 
@@ -1000,6 +1007,7 @@ function buildMusicMainCatBar() {
             highlightMusicMainCat(cat);
             buildMusicSubFilters();
             loadMusic(0);
+            btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         });
         row.appendChild(btn);
     });
@@ -1040,6 +1048,7 @@ function buildMusicSubFilters() {
             musicActiveCategory = pill.dataset.filter;
             allMusic = [];
             loadMusic(0);
+            pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         });
     });
 
@@ -1107,15 +1116,19 @@ async function loadSfx() {
 
         const data = await res.json();
         const mapped = data
-            .map(item => ({
-                id: item.id,
-                titulo: item.titulo || 'Sem título',
-                categorias: Array.isArray(item.categorias) ? item.categorias : [],
-                url: item.Cloud_R2_url || '',
-                driveId: item.google_drive_id || '',
-                duracao: item.duracao || 0,
-                picos: Array.isArray(item.picos) ? item.picos : null
-            }));
+            .map(item => {
+                let r2Url = item.Cloud_R2_url || '';
+                if (r2Url && !r2Url.startsWith('http')) r2Url = 'https://' + r2Url;
+                return {
+                    id: item.id,
+                    titulo: item.titulo || 'Sem título',
+                    categorias: Array.isArray(item.categorias) ? item.categorias : [],
+                    url: r2Url,
+                    driveId: item.google_drive_id || '',
+                    duracao: item.duracao || 0,
+                    picos: Array.isArray(item.picos) ? item.picos : null
+                };
+            });
 
         if (sfxCurrentPage === 0) {
             allSfx = mapped;
@@ -1163,6 +1176,7 @@ function buildSfxMainCatBar() {
         document.getElementById('filterRow').style.display = 'none';
         highlightSfxMainCat('all');
         loadSfx();
+        allTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     });
     row.appendChild(allTab);
 
@@ -1178,6 +1192,7 @@ function buildSfxMainCatBar() {
             highlightSfxMainCat(cat);
             buildSfxSubFilters();
             loadSfx();
+            btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         });
         row.appendChild(btn);
     });
@@ -1225,6 +1240,7 @@ function buildSfxSubFilters() {
             sfxCurrentPage = 0;
             allSfx = [];
             loadSfx();
+            pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         });
     });
 
@@ -1823,8 +1839,6 @@ async function loadCaptions() {
         captionsLoaded = true;
         buildLegendasMainCatBar();
         renderCaptions();
-        const countSpan = document.getElementById('captionCountNum');
-        if (countSpan) countSpan.textContent = captionsData.length;
     } catch (e) {
         grid.innerHTML = '<div class="state-box"><p style="color:#ff6b8a">Erro ao carregar legendas. Verifique a instalação.</p></div>';
         console.error('Erro loadCaptions:', e);
@@ -1837,6 +1851,7 @@ function buildLegendasMainCatBar() {
         tab.addEventListener('click', () => {
             tabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
+            tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
             // Como por enquanto só temos 'Captions Virais', não filtramos
             // No futuro: activeLegendasCat = tab.dataset.cat;
         });
@@ -1897,8 +1912,8 @@ async function applyCaption(captionId, btn) {
         const result = await window.resolveAPI.applyCaption(presetPath);
         if (result && result.startsWith('SUCCESS')) {
             const msg = result.replace('SUCCESS:', '').trim();
-            btn.innerHTML = '✅ Adicionado!';
-            showToast(`✅ "${cap.name}" ${msg}`, 'success');
+            btn.innerHTML = 'Adicionado!';
+            showToast(`"${cap.name}" ${msg}`, 'success');
             setTimeout(() => {
                 btn.disabled = false;
                 btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Importar';
@@ -1908,7 +1923,7 @@ async function applyCaption(captionId, btn) {
         }
     } catch (e) {
         btn.disabled = false;
-        btn.innerHTML = '⚠️ Tentar novamente';
+        btn.innerHTML = 'Tentar novamente';
         showToast('Erro ao instalar preset: ' + e.message, 'error');
     }
 }

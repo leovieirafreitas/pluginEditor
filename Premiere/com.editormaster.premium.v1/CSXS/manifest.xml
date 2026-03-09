@@ -41,7 +41,7 @@
         </Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>🎬 EditLab Pro</Menu>
+          <Menu>EditLab Pro</Menu>
           <Geometry>
             <Size>
               <Height>700</Height>

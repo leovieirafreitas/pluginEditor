@@ -1,93 +1,51 @@
 @echo off
-title EditLab Pro - Instalador
-chcp 65001 > nul
-color 0B
+setlocal enabledelayedexpansion
+
+echo ====================================================
+echo    INSTALADOR EDITLAB PRO - V5 (FIXED)
+echo ====================================================
+
+:: Define nomes e caminhos
+set "EXTENSION_NAME=com.editormaster.premium.v1"
+set "SOURCE_DIR=%~dp0%EXTENSION_NAME%"
+set "TARGET_DIR_COMMON=%CommonProgramFiles(x86)%\Adobe\CEP\extensions\%EXTENSION_NAME%"
+set "TARGET_DIR_USER=%AppData%\Adobe\CEP\extensions\%EXTENSION_NAME%"
+set "CACHE_DIR=%LocalAppData%\Adobe\CEP\cache\%EXTENSION_NAME%"
 
 echo.
-echo  ╔══════════════════════════════════════════════════════════╗
-echo  ║                🎬 EDITLAB PRO - INSTALADOR               ║
-echo  ║                  Versão 1.0                              ║
-echo  ╚══════════════════════════════════════════════════════════╝
-echo.
+echo [1/3] Limpando cache do Adobe...
+rd /s /q "%CACHE_DIR%" 2>nul
 
-:: Verificar se está rodando como Admin
-net session >nul 2>&1
-if %errorLevel% neq 0 (
-    echo  ⚠️  ATENÇÃO: Execute como Administrador para instalação global!
-    echo  Tentando instalar no perfil do usuário...
-    echo.
+echo [2/3] Removendo instalacoes antigas...
+rd /s /q "%TARGET_DIR_COMMON%" 2>nul
+rd /s /q "%TARGET_DIR_USER%" 2>nul
+
+echo [3/3] Instalando novos arquivos...
+:: Tenta Global primeiro (Arquivos de Programas)
+mkdir "%TARGET_DIR_COMMON%" 2>nul
+xcopy "%SOURCE_DIR%" "%TARGET_DIR_COMMON%" /s /e /y /i /q
+
+if %errorlevel% neq 0 (
+    echo [INFO] Nao foi possivel instalar em Arquivos de Programas. 
+    echo Tentando instalacao local na pasta do Usuario...
+    mkdir "%TARGET_DIR_USER%" 2>nul
+    xcopy "%SOURCE_DIR%" "%TARGET_DIR_USER%" /s /e /y /i /q
 )
 
-set "PLUGIN_NAME=com.editormaster.premium.v1"
-set "PLUGIN_SRC=%~dp0%PLUGIN_NAME%"
-
-:: Tenta primeiro o caminho global, depois o local
-set "INSTALL_PATH_GLOBAL=C:\Program Files (x86)\Common Files\Adobe\CEP\extensions\%PLUGIN_NAME%"
-set "INSTALL_PATH_USER=%APPDATA%\Adobe\CEP\extensions\%PLUGIN_NAME%"
-
-:: Verificar se a pasta do plugin existe
-if not exist "%PLUGIN_SRC%" (
-    echo  ❌ ERRO: Pasta do plugin nao encontrada em:
-    echo     %PLUGIN_SRC%
+if %errorlevel% equ 0 (
     echo.
-    pause
-    exit /b 1
-)
-
-:: Escolher destino
-set "INSTALL_DEST=%INSTALL_PATH_USER%"
-net session >nul 2>&1
-if %errorLevel% equ 0 (
-    set "INSTALL_DEST=%INSTALL_PATH_GLOBAL%"
-    echo  ✓ Modo Administrador detectado. Instalação global.
+    echo ====================================================
+    echo    SUCESSO! O PLUGIN FOI ATUALIZADO.
+    echo.
+    echo    1. Feche o Premiere se estiver aberto.
+    echo    2. Abra o Premiere e va em Janela -> Extensoes.
+    echo ====================================================
 ) else (
-    echo  ✓ Instalação no perfil do usuário.
-)
-
-echo  📂 Destino: %INSTALL_DEST%
-echo.
-
-:: Remover versão antiga se existir
-if exist "%INSTALL_DEST%" (
-    echo  🗑️  Removendo versão anterior...
-    rmdir /s /q "%INSTALL_DEST%"
-)
-
-:: Criar diretório e copiar
-echo  📋 Copiando arquivos...
-mkdir "%INSTALL_DEST%" 2>nul
-xcopy "%PLUGIN_SRC%\*" "%INSTALL_DEST%\" /s /e /y /q
-
-if %errorLevel% neq 0 (
     echo.
-    echo  ❌ ERRO ao copiar arquivos!
-    pause
-    exit /b 1
-)
-
-:: Verificar instalação
-if not exist "%INSTALL_DEST%\index.html" (
-    echo.
-    echo  ❌ ERRO: Instalação incompleta!
-    pause
-    exit /b 1
+    echo [!] ERRO: Nao foi possivel copiar os arquivos.
+    echo Certifique-se de que o Premiere esta FECHADO.
 )
 
 echo.
-echo  ╔══════════════════════════════════════════════════════════╗
-echo  ║  ✅  INSTALAÇÃO CONCLUÍDA COM SUCESSO!                   ║
-echo  ╚══════════════════════════════════════════════════════════╝
-echo.
-echo  📌 PRÓXIMOS PASSOS:
-echo.
-echo  1. Abra o Adobe Premiere Pro
-echo  2. Vá em: Window ^> Extensions ^> 🎬 EditLab Pro
-echo  3. Faça login com suas credenciais
-echo  4. Abra uma timeline e comece a usar!
-echo.
-echo  ⚠️  Se o plugin não aparecer na lista de extensões:
-echo     - Certifique-se de ter o CSXS Player instalado
-echo     - Tente fechar e reabrir o Premiere Pro
-echo     - Execute o instalador como Administrador
-echo.
-pause
+echo Pressione qualquer tecla para sair...
+pause >nul

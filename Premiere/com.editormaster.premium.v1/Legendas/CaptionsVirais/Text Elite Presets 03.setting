@@ -1,0 +1,260 @@
+{
+	Tools = ordered() {
+		MacroTool1 = GroupOperator {
+			Inputs = ordered() {
+				Input1 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "StyledText",
+				},
+				Input2 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Font",
+					ControlGroup = 2,
+				},
+				Input3 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Style",
+					ControlGroup = 2,
+				},
+				Input4 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Red1Clone",
+					Name = "Color",
+					ControlGroup = 3,
+					Default = 1,
+				},
+				Input5 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Green1Clone",
+					ControlGroup = 3,
+					Default = 1,
+				},
+				Input6 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Blue1Clone",
+					ControlGroup = 3,
+					Default = 1,
+				},
+				Input7 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Alpha1Clone",
+					ControlGroup = 3,
+					Default = 1,
+				},
+				Input8 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Size",
+					Default = 0.1102,
+				},
+				Input9 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "CharacterSpacingClone",
+					Name = "Tracking",
+					Default = 1,
+				},
+				Input10 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "LineSpacingClone",
+					Default = 1,
+				},
+				Input11 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "VerticalJustificationTop",
+					Name = "V Anchor",
+					ControlGroup = 7,
+				},
+				Input12 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "VerticalJustificationCenter",
+					ControlGroup = 7,
+				},
+				Input13 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "VerticalJustificationBottom",
+					ControlGroup = 7,
+				},
+				Input14 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "VerticalTopCenterBottom",
+					Default = 0,
+				},
+				Input15 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "CenterOnBaseOfFirstLine",
+					Default = 0,
+				},
+				Input16 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "HorizontalJustificationLeft",
+					Name = "H Anchor",
+					ControlGroup = 10,
+				},
+				Input17 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "HorizontalJustificationCenter",
+					ControlGroup = 10,
+				},
+				Input18 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "HorizontalJustificationRight",
+					ControlGroup = 10,
+				},
+				Input19 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "HorizontalLeftCenterRight",
+					Default = 0,
+				}
+			},
+			Outputs = {
+				Output1 = InstanceOutput {
+					SourceOp = "Path1",
+					Source = "Heading",
+				},
+				MainOutput1 = InstanceOutput {
+					SourceOp = "KeyframeStretcher1",
+					Source = "Result",
+				}
+			},
+			ViewInfo = GroupInfo { Pos = { 0, 0 } },
+			Tools = ordered() {
+				Text1 = TextPlus {
+					Inputs = {
+						Width = Input { Value = 1920, },
+						Height = Input { Value = 1080, },
+						UseFrameFormatSettings = Input { Value = 1, },
+						["Gamut.SLogVersion"] = Input { Value = FuID { "SLog2" }, },
+						Center = Input {
+							SourceOp = "Path1",
+							Source = "Position",
+						},
+						LayoutRotation = Input { Value = 1, },
+						SelectTransform = Input { Value = 1, },
+						WordOffsetZ = Input {
+							SourceOp = "Text1WordOffsetZ",
+							Source = "Value",
+						},
+						TransformRotation = Input { Value = 1, },
+						TransformSize = Input { Value = 1, },
+						Opacity1 = Input {
+							SourceOp = "Text1Opacity1",
+							Source = "Value",
+						},
+						Softness1 = Input { Value = 1, },
+						StyledText = Input { Value = "Text animation ", },
+						Font = Input { Value = "Poppins", },
+						Style = Input { Value = "SemiBold", },
+						Size = Input { Value = 0.1102, },
+						VerticalJustificationNew = Input { Value = 3, },
+						HorizontalJustificationNew = Input { Value = 3, },
+						Start = Input {
+							SourceOp = "Text1WriteOnStart",
+							Source = "Value",
+						},
+						End = Input {
+							SourceOp = "Text1WriteOnEnd",
+							Source = "Value",
+						}
+					},
+					ViewInfo = OperatorInfo { Pos = { 131, 107.364 } },
+				},
+				Path1 = PolyPath {
+					DrawMode = "InsertAndModify",
+					CtrlWZoom = false,
+					Inputs = {
+						Displacement = Input {
+							SourceOp = "Path1Displacement",
+							Source = "Value",
+						},
+						PolyLine = Input {
+							Value = Polyline {
+								Points = {
+									{ Linear = true, LockY = true, X = 0.165, Y = 0, RX = -0.0513333333333333, RY = 0 },
+									{ Linear = true, LockY = true, X = 0.011, Y = 0, LX = 0.0513333333333333, LY = 0, RX = 0, RY = 0 },
+									{ Linear = true, LockY = true, X = 0.011, Y = 0, LX = 0, LY = 0, RX = -0.0233333333333333, RY = 0 },
+									{ Linear = true, LockY = true, X = -0.059, Y = 0, LX = 0.0233333333333333, LY = 0, RX = 0, RY = 0 },
+									{ Linear = true, LockY = true, X = -0.059, Y = 0, LX = 0, LY = 0, RX = -0.049, RY = 0 },
+									{ Linear = true, LockY = true, X = -0.206, Y = 0, LX = 0.049, LY = 0 }
+								}
+							},
+						}
+					},
+				},
+				Path1Displacement = BezierSpline {
+					SplineColor = { Red = 255, Green = 0, Blue = 255 },
+					CtrlWZoom = false,
+					KeyFrames = {
+						[-1] = { 0, RH = { 15.2857142857143, 0.016366576819407 }, Flags = { LockedY = true } },
+						[23] = { 0.415094339622642, LH = { -3.4, 0.412603773584905 }, RH = { 28.6666666666667, 0.415094339622642 }, Flags = { LockedY = true } },
+						[40] = { 0.415094339622642, LH = { 34.3333333333333, 0.415094339622642 }, RH = { 44.9994999170303, 0.415094339622642 }, Flags = { Linear = true, LockedY = true } },
+						[55] = { 0.603773584905661, LH = { 40, 0.608301886792453 }, RH = { 56, 0.603773584905661 }, Flags = { LockedY = true } },
+						[58] = { 0.603773584905661, LH = { 57, 0.603773584905661 }, RH = { 61.8, 0.728 }, Flags = { Linear = true, LockedY = true } },
+						[72] = { 1, LH = { 65.2, 1 }, Flags = { LockedY = true } }
+					}
+				},
+				Text1WordOffsetZ = BezierSpline {
+					SplineColor = { Red = 249, Green = 38, Blue = 62 },
+					CtrlWZoom = false,
+					KeyFrames = {
+						[5] = { 0.169, RH = { 5.66664163468296, 0.0490045057570662 } },
+						[24] = { 0, LH = { 10.9, 0 }, RH = { 29.3333333333333, 0 } },
+						[40] = { 0, LH = { 34.6666666666667, 0 }, RH = { 45.4, 0 }, Flags = { Linear = true } },
+						[47] = { -0.0959999999999999, LH = { 42.404, -0.0939999999999999 }, RH = { 55, -0.101333333333333 } },
+						[59] = { -0.164, LH = { 59, 8.32667268468867e-17 }, RH = { 61.3333333333333, -0.164 }, Flags = { StepIn = true } },
+						[66] = { -0.296, LH = { 66, -0.203574131211813 }, RH = { 67.6666666666667, -0.296 }, Flags = { StepIn = true } },
+						[71] = { -0.381, LH = { 71, -0.352666666666667 }, Flags = { StepIn = true } }
+					}
+				},
+				Text1Opacity1 = BezierSpline {
+					SplineColor = { Red = 179, Green = 28, Blue = 244 },
+					CtrlWZoom = false,
+					KeyFrames = {
+						[68] = { 1, RH = { 68.3333333333333, 0.666666666666667 }, Flags = { Linear = true } },
+						[69] = { 0, LH = { 68.6666666666667, 0.333333333333333 }, Flags = { Linear = true } }
+					}
+				},
+				Text1WriteOnStart = BezierSpline {
+					SplineColor = { Red = 249, Green = 211, Blue = 150 },
+					CtrlWZoom = false,
+					KeyFrames = {
+						[0] = { 0, RH = { 2, 0 }, Flags = { Linear = true } },
+						[6] = { 0, LH = { 4, 0 }, RH = { 6.66666666666667, 0 }, Flags = { Linear = true } },
+						[8] = { 0, LH = { 7.33333333333333, 0 }, RH = { 12.3333333333333, 0 }, Flags = { Linear = true } },
+						[21] = { 0, LH = { 16.6666666666667, 0 }, RH = { 27.6666666666667, 0 }, Flags = { Linear = true } },
+						[41] = { 0, LH = { 34.3333333333333, 0 }, RH = { 42.6666666666667, 0.0728889 }, Flags = { Linear = true } },
+						[46] = { 0.2186667, LH = { 44.3333333333333, 0.1457778 }, RH = { 50, 0.255111133333333 }, Flags = { Linear = true } },
+						[58] = { 0.328, LH = { 54, 0.291555566666667 }, RH = { 62.3333333333333, 0.552 }, Flags = { Linear = true } },
+						[71] = { 1, LH = { 66.6666666666667, 0.776 }, Flags = { Linear = true } }
+					}
+				},
+				Text1WriteOnEnd = BezierSpline {
+					SplineColor = { Red = 218, Green = 249, Blue = 145 },
+					CtrlWZoom = false,
+					KeyFrames = {
+						[0] = { 0, RH = { 2.4, 0.05 } },
+						[6] = { 0.317, LH = { 4.27647128484978, 0.218011478250783 }, RH = { 7.3887191995864, 0.396759193730539 } },
+						[10] = { 0.5438426, LH = { 8.71861197314535, 0.473055093986618 }, RH = { 16.3291354951015, 0.893481981303382 } },
+						[27] = { 1, LH = { 21.7533594327577, 1 }, RH = { 31.6666666666667, 1 } },
+						[41] = { 1, LH = { 36.3333333333333, 1 }, RH = { 42.6666666666667, 1 }, Flags = { Linear = true } },
+						[46] = { 1, LH = { 44.3333333333333, 1 }, RH = { 50, 1 }, Flags = { Linear = true } },
+						[58] = { 1, LH = { 54, 1 }, RH = { 62.3333333333333, 1 }, Flags = { Linear = true } },
+						[71] = { 1, LH = { 66.6666666666667, 1 }, Flags = { Linear = true } }
+					}
+				},
+				KeyframeStretcher1 = KeyStretcher {
+					CtrlWZoom = false,
+					Inputs = {
+						Keyframes = Input {
+							SourceOp = "Text1",
+							Source = "Output",
+						},
+						SourceEnd = Input { Value = 72, },
+						StretchStart = Input { Value = 22, },
+						StretchEnd = Input { Value = 40, }
+					},
+					ViewInfo = OperatorInfo { Pos = { 455.667, 7.96981 } },
+				}
+			},
+		}
+	},
+	ActiveTool = "MacroTool1"
+}

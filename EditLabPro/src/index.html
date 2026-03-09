@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EditLabPro</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>EditLabPro</h1>
+      <div class="version">v1.2.0</div>
+    </header>
+
+    <main class="status-card">
+      <div class="plugin-item">
+        <div class="plugin-info">
+          <div class="plugin-icon"><img src="logo_davinci.png" alt="DaVinci Logo" /></div>
+          <div class="plugin-details">
+            <h3>DaVinci Resolve Studio</h3>
+            <p id="davinci-status">Status: Verificando...</p>
+          </div>
+        </div>
+        <button id="activate-davinci" class="btn-activate">Ativar Integração</button>
+      </div>
+
+      <div class="plugin-item">
+        <div class="plugin-info">
+          <div class="plugin-icon"><img src="logo_adobe.png" alt="Adobe Logo" /></div>
+          <div class="plugin-details">
+            <h3>Adobe Premiere Pro</h3>
+            <p id="premiere-status">Status: Instalado</p>
+          </div>
+        </div>
+        <button id="activate-premiere" class="btn-activate">Ativar Integração</button>
+      </div>
+    </main>
+
+    <footer class="footer">
+      © 2024 EditLabPro - Dashboard de Integração
+    </footer>
+  </div>
+  <script type="module" src="/main.js"></script>
+</body>
+
+</html>

@@ -1,10 +1,35 @@
-Instrução para o cliente Mac do Premiere:
-Extraia o ZIP
-Abra o Terminal
-Arraste o arquivo 
+🪟 Instruções para Windows (Premiere)
+Feche o Premiere Pro se ele estiver aberto.
+Localize o arquivo chamado 
+
+INSTALAR.bat
+ dentro da pasta do plugin.
+Clique com o botão direito no arquivo e escolha "Executar como Administrador".
+Uma janela preta irá abrir. Aguarde até que apareça a mensagem "SUCESSO! O PLUGIN FOI ATUALIZADO".
+Pressione qualquer tecla para fechar a janela.
+Abra o Adobe Premiere Pro.
+Vá no menu superior em: Janela (Window) -> Extensões -> EditLab Pro.
+🍎 Instruções para Mac (Premiere)
+Feche o Premiere Pro se ele estiver aberto.
+Abra o aplicativo Terminal (você pode pesquisar no Spotlight com Cmd + Espaço e digitar "Terminal").
+Localize o arquivo 
 
 Instalar_Plugin_Mac.sh
- para dentro do Terminal
-Pressione Enter
-Digite a senha do Mac se pedir
-Abra o Premiere Pro → Window → Extensions → EditLab Pro ✅
+ na pasta do plugin.
+Arraste esse arquivo para dentro da janela do Terminal (isso vai colar o caminho do arquivo automaticamente).
+Pressione a tecla Enter.
+Dica: Se o Mac pedir sua senha, digite-a e aperte Enter (é normal não aparecer os caracteres enquanto você digita).
+Aguarde a mensagem "INSTALAÇÃO CONCLUÍDA!".
+Abra o Adobe Premiere Pro.
+Vá no menu superior em: Window (Janela) -> Extensions (Extensões) -> EditLab Pro.
+
+
+
+Não aparece o plugin? Peça para o usuário baixar a versão mais recente do Premiere (o plugin funciona melhor nas versões CC 2021 em diante).
+Erro de Permissão no Mac? Se o arquivo 
+
+.sh
+ não rodar, peça para ele digitar chmod +x  (com um espaço no final) e arrastar o arquivo 
+
+.sh
+ de novo para o terminal antes de dar Enter.

@@ -7,7 +7,7 @@ const API_DB_URL = 'https://apiserver.editlabpro.com.br/api/db';
 const SFX_MAIN_CATEGORIES = {
     'AMBIENCE': ['Aircraft Ambience', 'Beach & Ocean', 'Big Crowds', 'Big Spaces', 'Busy Spaces', 'City',
         'Desert', 'Earth', 'Elements of Nature', 'Extreme Weather', 'Field', 'Forest',
-        'Human Powered Ambience', 'Indoor Ambiences', 'Lakes & Rivers', 'Metropolis', 'Nature',
+        'Human Powered Ambience', 'Indoor Ambiences', 'Industrial', 'Lakes & Rivers', 'Metropolis', 'Nature',
         'Night', 'Outdoor', 'Parks', 'People in the City', 'Public Spaces',
         'Public Transportation Ambience', 'Quiet Crowds', 'Room Tones', 'Sea Vessels Ambience',
         'Skyline', 'Small Spaces', 'Storm', 'Suburbs & Countryside', 'Transport Ambience',
@@ -38,7 +38,12 @@ const SFX_MAIN_CATEGORIES = {
     'TRANSITIONS': ['Airy Impacts', 'Alerts', 'Boings and Dings', 'Cinematic Impacts', 'Crashes',
         'Downers', 'Drones', 'Epic Transitions', 'Hard Impacts', 'Horror Transitions', 'Impacts',
         'Interfaces', 'Long Impacts', 'Long Whooshes', 'Menus', 'Reverse', 'Risers',
-        'Scary Textures', 'Short Impacts', 'Short Whooshes', 'Technology', 'Tonal Whooshes', 'Whooshes']
+        'Scary Textures', 'Short Impacts', 'Short Whooshes', 'Technology', 'Tonal Whooshes', 'Whooshes'],
+    'CINEMA': ['Cinema'],
+    'GAMING': ['Gaming'],
+    'NATURE': ['Nature'],
+    'OFFICE': ['Office'],
+    'TOOLS': ['Tools']
 };
 
 let csInterface;
@@ -250,30 +255,31 @@ function switchTab(tab) {
 
         if (allSfx.length === 0) {
             loadSfx();
-        } else if (!document.querySelector('#sfxContent .sfx-list')) {
+        } else {
             const hasMore = sfxTotalCount > allSfx.length;
             renderSfx(hasMore);
         }
+    } else if (tab === 'music') {
+        if (globalSearch) globalSearch.style.display = 'flex';
+        musicMainCatEl.style.display = 'block';
+        musicCountBar.style.display = 'block';
+        if (musicMainCat !== 'all') filterRow.style.display = 'flex';
+        if (selYear) selYear.style.display = 'none';
+
+        if (allMusic.length === 0) {
+            loadMusic(0);
+        } else {
+            const hasMore = musicTotalCount > allMusic.length;
+            renderMusic(hasMore);
+        }
     } else if (tab === 'videos') {
         if (globalSearch) globalSearch.style.display = 'flex';
-        if (selYear) selYear.style.display = 'block';
+        if (selYear) selYear.style.display = (clipSelectedMovie) ? 'none' : 'block';
 
         if (clipMovies.length === 0) {
             loadVideos();
         } else if (!document.querySelector('#videosContent .clip-movie-grid') && !document.querySelector('#clipcafeWrap.detail-mode')) {
             renderMovieGrid();
-        }
-    } else { // Music
-        if (globalSearch) globalSearch.style.display = 'flex';
-        if (selYear) selYear.style.display = 'none';
-        musicMainCatEl.style.display = 'block';
-        musicCountBar.style.display = 'block';
-        if (musicMainCat !== 'all') filterRow.style.display = 'flex';
-
-        if (allMusic.length === 0) {
-            loadMusic();
-        } else {
-            renderMusic(musicTotalCount > allMusic.length);
         }
     }
 }
@@ -525,7 +531,7 @@ async function openClipMovie(movie) {
         </div>
         <div class="clip-header-info">
            <div class="clip-detail-title-v2">${movie.title}</div>
-           <div class="clip-detail-meta-v2">${movie.year} • <span id="clipDetailCount">${localClips.length}</span> cenas</div>
+           <div class="clip-detail-meta-v2">${localClips.length} cenas</div>
         </div>
       </div>
       <div id="clipDetailGrid" class="clip-detail-grid"></div>
@@ -915,16 +921,20 @@ async function loadMusic(page = 0) {
         }
 
         const data = await res.json();
-        const mapped = data.map(item => ({
-            id: item.id,
-            titulo: item.titulo || 'Sem título',
-            artista: item.artista || '',
-            categorias: Array.isArray(item.categorias) ? item.categorias : [],
-            duracao: item.duracao || 0,
-            capa: item.capa || '',
-            picos: Array.isArray(item.picos) ? item.picos : null,
-            url: item.Cloud_R2_url || ''
-        }));
+        const mapped = data.map(item => {
+            let r2Url = item.Cloud_R2_url || '';
+            if (r2Url && !r2Url.startsWith('http')) r2Url = 'https://' + r2Url;
+            return {
+                id: item.id,
+                titulo: item.titulo || 'Sem título',
+                artista: item.artista || '',
+                categorias: Array.isArray(item.categorias) ? item.categorias : [],
+                duracao: item.duracao || 0,
+                capa: item.capa || '',
+                picos: Array.isArray(item.picos) ? item.picos : null,
+                url: r2Url
+            };
+        });
 
         if (page === 0) {
             allMusic = mapped;
@@ -965,6 +975,7 @@ function buildMusicMainCatBar() {
         document.getElementById('filterRow').style.display = 'none';
         highlightMusicMainCat('all');
         loadMusic(0);
+        allTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     });
     row.appendChild(allTab);
 
@@ -979,6 +990,7 @@ function buildMusicMainCatBar() {
             highlightMusicMainCat(cat);
             buildMusicSubFilters();
             loadMusic(0);
+            btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         });
         row.appendChild(btn);
     });
@@ -1019,6 +1031,7 @@ function buildMusicSubFilters() {
             musicActiveCategory = pill.dataset.filter;
             allMusic = [];
             loadMusic(0);
+            pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         });
     });
 
@@ -1086,15 +1099,19 @@ async function loadSfx() {
 
         const data = await res.json();
         const mapped = data
-            .map(item => ({
-                id: item.id,
-                titulo: item.titulo || 'Sem título',
-                categorias: Array.isArray(item.categorias) ? item.categorias : [],
-                url: item.Cloud_R2_url || '',
-                driveId: item.google_drive_id || '',
-                duracao: item.duracao || 0,
-                picos: Array.isArray(item.picos) ? item.picos : null
-            }));
+            .map(item => {
+                let r2Url = item.Cloud_R2_url || '';
+                if (r2Url && !r2Url.startsWith('http')) r2Url = 'https://' + r2Url;
+                return {
+                    id: item.id,
+                    titulo: item.titulo || 'Sem título',
+                    categorias: Array.isArray(item.categorias) ? item.categorias : [],
+                    url: r2Url,
+                    driveId: item.google_drive_id || '',
+                    duracao: item.duracao || 0,
+                    picos: Array.isArray(item.picos) ? item.picos : null
+                };
+            });
 
         if (sfxCurrentPage === 0) {
             allSfx = mapped;
@@ -1142,6 +1159,7 @@ function buildSfxMainCatBar() {
         document.getElementById('filterRow').style.display = 'none';
         highlightSfxMainCat('all');
         loadSfx();
+        allTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     });
     row.appendChild(allTab);
 
@@ -1157,6 +1175,7 @@ function buildSfxMainCatBar() {
             highlightSfxMainCat(cat);
             buildSfxSubFilters();
             loadSfx();
+            btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         });
         row.appendChild(btn);
     });
@@ -1204,6 +1223,7 @@ function buildSfxSubFilters() {
             sfxCurrentPage = 0;
             allSfx = [];
             loadSfx();
+            pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         });
     });
 
@@ -1785,10 +1805,6 @@ function showToast(msg, type = 'info') {
     toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
 }
 
-function fmtTime(s) {
-    if (isNaN(s)) return '0:00';
-    return `${Math.floor(s / 60)}: ${Math.floor(s % 60).toString().padStart(2, '0')}`;
-}
 
 function generateFakePeaks(seed) {
     let s = 0;

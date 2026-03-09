@@ -1,0 +1,30 @@
+Como instalar o EditLab Pro no DaVinci Resolve:
+
+Instale o Node.js em nodejs.org 
+
+Instalar_Plugin.bat
+Escolha "Executar como administrador"
+Aguarde a mensagem "INSTALAÇÃO CONCLUÍDA"
+Abra o DaVinci → Workspace → Workflow Integrations → EditLab Pro
+Faça login e aproveite! 🎬
+
+
+
+
+
+
+Pré-requisito: Instale o Node.js em nodejs.org (botão LTS)
+
+Extraia o ZIP
+Abra o Terminal (pode buscar no Spotlight: ⌘ + Espaço → "Terminal")
+Arraste o arquivo 
+
+Instalar_Plugin_Mac.sh
+ para dentro da janela do Terminal
+Pressione Enter
+Aguarde a mensagem "INSTALAÇÃO CONCLUÍDA"
+Abra o DaVinci Resolve
+Vá em: Workspace → Workflow Integrations → EditLab Pro
+Faça login e aproveite! 🎬
+
+
