@@ -135,6 +135,23 @@ body {
   transform: scale(0.98);
 }
 
+.btn-deactivate {
+  background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  box-shadow: 0 4px 15px rgba(255, 75, 43, 0.3);
+}
+
+.btn-deactivate:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
 .footer {
   text-align: center;
   font-size: 0.8rem;
