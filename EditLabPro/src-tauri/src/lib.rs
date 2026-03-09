@@ -56,6 +56,30 @@ fn activate_davinci(app: AppHandle) -> Result<String, String> {
     }
 
     let src_davinci = get_resource_path(&app, "Davinci")?;
+    
+    // --- LÓGICA DE BINÁRIO PARA MAC ---
+    let mut mac_node_found = PathBuf::new();
+    if cfg!(target_os = "macos") {
+        let potential_nodes = vec![
+            "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/Modules/Lua/WorkflowIntegration/WorkflowIntegration.node",
+            "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Frameworks/WorkflowIntegration.node",
+            "/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Workflow Integrations/Examples/SamplePlugin/WorkflowIntegration.node"
+        ];
+        for p in potential_nodes {
+            let path = PathBuf::from(p);
+            if path.exists() {
+                mac_node_found = path;
+                break;
+            }
+        }
+        
+        // Se não achou na mão, podemos tentar uma busca rápida se necessário, 
+        // mas esses caminhos acima cobrem 99% dos casos.
+        if mac_node_found.as_os_str().is_empty() {
+             return Err("Plugin não localizado. Verifique se o DaVinci Resolve STUDIO está instalado.".into());
+        }
+    }
+
     let mut success_count = 0;
 
     for base_path in final_paths {
@@ -67,6 +91,12 @@ fn activate_davinci(app: AppHandle) -> Result<String, String> {
             options.overwrite = true;
             if copy(&src_davinci, &dest, &options).is_ok() {
                 success_count += 1;
+
+                // Se for Mac, substituir o binário Windows pelo binário local do Mac
+                if cfg!(target_os = "macos") && !mac_node_found.as_os_str().is_empty() {
+                    fs::copy(&mac_node_found, dest.join("WorkflowIntegration.node")).ok();
+                }
+
                 // NPM INSTALL
                 let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
                 let arg = if cfg!(target_os = "windows") { "/C" } else { "-c" };
