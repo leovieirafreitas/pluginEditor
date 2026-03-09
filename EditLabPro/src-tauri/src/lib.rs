@@ -57,9 +57,11 @@ fn activate_davinci(app: AppHandle) -> Result<String, String> {
 
     let src_davinci = get_resource_path(&app, "Davinci")?;
     
-    // --- LÓGICA DE BINÁRIO PARA MAC ---
+    // --- LÓGICA ROBUSTA PARA MAC ---
     let mut mac_node_found = PathBuf::new();
-    if cfg!(target_os = "macos") {
+    #[cfg(target_os = "macos")]
+    {
+        // 1. Tentar caminhos fixos conhecidos
         let potential_nodes = vec![
             "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/Modules/Lua/WorkflowIntegration/WorkflowIntegration.node",
             "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Frameworks/WorkflowIntegration.node",
@@ -67,16 +69,21 @@ fn activate_davinci(app: AppHandle) -> Result<String, String> {
         ];
         for p in potential_nodes {
             let path = PathBuf::from(p);
-            if path.exists() {
-                mac_node_found = path;
-                break;
-            }
+            if path.exists() { mac_node_found = path; break; }
         }
         
-        // Se não achou na mão, podemos tentar uma busca rápida se necessário, 
-        // mas esses caminhos acima cobrem 99% dos casos.
+        // 2. Tentar busca via Spotlight (mdfind) se não achou nos fixos
         if mac_node_found.as_os_str().is_empty() {
-             return Err("Plugin não localizado. Verifique se o DaVinci Resolve STUDIO está instalado.".into());
+             if let Ok(output) = std::process::Command::new("mdfind").args(&["-name", "WorkflowIntegration.node"]).output() {
+                 let s = String::from_utf8_lossy(&output.stdout);
+                 if let Some(first_path) = s.lines().next() {
+                     mac_node_found = PathBuf::from(first_path);
+                 }
+             }
+        }
+        
+        if mac_node_found.as_os_str().is_empty() {
+             return Err("ERRO: O DaVinci Resolve STUDIO não foi detectado. Esta integração exige a versão paga do DaVinci.".into());
         }
     }
 
@@ -84,18 +91,32 @@ fn activate_davinci(app: AppHandle) -> Result<String, String> {
 
     for base_path in final_paths {
         let dest = base_path.join("com.editormaster.premium.v1");
+        
+        // Limpeza total antes de começar
         if dest.exists() { fs::remove_dir_all(&dest).ok(); }
+        
         if fs::create_dir_all(&dest).is_ok() {
             let mut options = CopyOptions::new();
             options.content_only = true;
             options.overwrite = true;
+            
             if copy(&src_davinci, &dest, &options).is_ok() {
-                success_count += 1;
-
-                // Se for Mac, substituir o binário Windows pelo binário local do Mac
-                if cfg!(target_os = "macos") && !mac_node_found.as_os_str().is_empty() {
-                    fs::copy(&mac_node_found, dest.join("WorkflowIntegration.node")).ok();
+                // NO MAC: Precisamos DELETAR o arquivo de Windows que veio no pacote e colocar o do Mac
+                #[cfg(target_os = "macos")]
+                {
+                    let node_file = dest.join("WorkflowIntegration.node");
+                    if node_file.exists() { fs::remove_file(&node_file).ok(); }
+                    
+                    if !mac_node_found.as_os_str().is_empty() {
+                        if fs::copy(&mac_node_found, &node_file).is_err() {
+                            return Err("Erro ao copiar arquivo de integração do sistema. Verifique as permissões do DaVinci.".into());
+                        }
+                    } else {
+                        return Err("Arquivo de integração nativo não encontrado no seu Mac.".into());
+                    }
                 }
+
+                success_count += 1;
 
                 // NPM INSTALL
                 let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
@@ -105,7 +126,7 @@ fn activate_davinci(app: AppHandle) -> Result<String, String> {
                 cmd.args(&[arg, "npm install --production --silent"]).current_dir(&dest);
                 
                 #[cfg(windows)]
-                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                cmd.creation_flags(0x08000000);
                 
                 cmd.status().ok();
             }
