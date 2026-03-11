@@ -88,8 +88,8 @@ function importVideoFromURL(videoUrl, videoTitle) {
         cleanUp([vbs, new File(logPath)]);
 
         if (!item) return "ERROR: After Effects não conseguiu importar o arquivo";
-        
-        try { item.name = videoTitle; } catch(e) {}
+
+        try { item.name = videoTitle; } catch (e) { }
 
         var activeItem = app.project.activeItem;
         if (activeItem && (activeItem instanceof CompItem)) {
@@ -97,7 +97,7 @@ function importVideoFromURL(videoUrl, videoTitle) {
             if (layer) layer.startTime = activeItem.time;
             return "SUCCESS: " + videoTitle + " (Adicionado na agulha)";
         }
-        
+
         return "SUCCESS: " + videoTitle + " (No Project Panel)";
     } catch (e) {
         return "ERROR: " + e.toString();
@@ -112,8 +112,8 @@ function importLocalAudio(filePath, audioTitle) {
         var io = new ImportOptions(f);
         var item = app.project.importFile(io);
         if (!item) return "ERROR: AE nao conseguiu importar o audio";
-        
-        try { item.name = audioTitle; } catch(e) {}
+
+        try { item.name = audioTitle; } catch (e) { }
 
         var activeItem = app.project.activeItem;
         if (activeItem && (activeItem instanceof CompItem)) {
@@ -161,8 +161,8 @@ function importLocalVideo(filePath, videoTitle, isBase64) {
         var io = new ImportOptions(f);
         var item = app.project.importFile(io);
         if (!item) return "ERROR: AE nao conseguiu importar o video";
-        
-        try { item.name = realTitle; } catch(e) {}
+
+        try { item.name = realTitle; } catch (e) { }
 
         var activeItem = app.project.activeItem;
         if (activeItem && (activeItem instanceof CompItem)) {
@@ -179,5 +179,109 @@ function importLocalVideo(filePath, videoTitle, isBase64) {
 function cleanUp(files) {
     for (var i = 0; i < files.length; i++) {
         try { if (files[i] && files[i].exists) files[i].remove(); } catch (e) { }
+    }
+}
+
+/**
+ * ============================================================
+ * AEP IMPORT — Legendas / Captions nativa
+ * Importa um projeto .aep de template do plugin.
+ * Localiza a composição de legenda importada e aplica nela as cores/texto.
+ *
+ * @param {string} encodedPath - Caminho absoluto codificado (URI) para o .aep
+ * @param {string} encodedText - Texto codificado (URI)
+ * @param {number} fontSize    - Tamanho da fonte
+ * @param {string} colorHex    - Cor em Hex sem '#'
+ * ============================================================
+ */
+function importAEPToTimeline(encodedPath, encodedText, fontSize, colorHex) {
+    try {
+        var aepFullPath = decodeURIComponent(encodedPath);
+        var legendText = decodeURIComponent(encodedText);
+
+        var aepFile = new File(aepFullPath);
+        if (!aepFile.exists) {
+            return 'ERROR: Arquivo de template não encontrado no plugin: ' + aepFullPath;
+        }
+
+        var activeComp = app.project.activeItem;
+        if (!activeComp || !(activeComp instanceof CompItem)) {
+            return 'ERROR: Nenhuma composition ativa no After Effects. Crie ou abra uma primeiro.';
+        }
+
+        app.beginUndoGroup("EditLabPro - Inserir Legenda AEP");
+
+        // 1) Importa o Projeto AEP — no AE, .aep é importado como um FolderItem
+        var io = new ImportOptions(aepFile);
+        var importedProjectFolder;
+        try {
+            importedProjectFolder = app.project.importFile(io);
+        } catch (importErr) {
+            app.endUndoGroup();
+            return 'ERROR: Falha ao importar template .aep — ' + importErr.toString();
+        }
+        
+        if (!importedProjectFolder || !(importedProjectFolder instanceof FolderItem)) {
+            app.endUndoGroup();
+            return 'ERROR: Falha, o AEP não foi importado como uma pasta.';
+        }
+
+        // 2) Procura a Composition principal da Legenda dentro da pasta
+        // Vai iterar recursivamente pra achar a primeira CompItem
+        var targetComp = null;
+        function findComp(folder) {
+            for (var i = 1; i <= folder.numItems; i++) {
+                var item = folder.item(i);
+                if (item instanceof CompItem) {
+                    return item;
+                } else if (item instanceof FolderItem) {
+                    var found = findComp(item);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+        targetComp = findComp(importedProjectFolder);
+
+        if (!targetComp) {
+            app.endUndoGroup();
+            return 'ERROR: Nenhuma Composition encontrada dentro do AEP importado.';
+        }
+
+        // 3) Insere na Timeline (Agulha) da composition logada
+        var newLayer = activeComp.layers.add(targetComp);
+        newLayer.startTime = activeComp.time;
+
+        // 4) Edita TODOS os TextLayers originais dentro da comp importada
+        var textsFound = 0;
+        for (var li = 1; li <= targetComp.numLayers; li++) {
+            var lyr = targetComp.layers[li];
+            if (lyr instanceof TextLayer) {
+                try {
+                    var tfProp = lyr.property('ADBE Text Properties').property('ADBE Text Document');
+                    var td = tfProp.value;
+                    var multiTexts = legendText.split('|||');
+                    td.text = (textsFound < multiTexts.length) ? multiTexts[textsFound] : multiTexts[multiTexts.length - 1];
+                    if (fontSize && fontSize > 0) td.fontSize = fontSize;
+
+                    if (colorHex && colorHex.length >= 6) {
+                        var r = parseInt(colorHex.substring(0, 2), 16) / 255;
+                        var g = parseInt(colorHex.substring(2, 4), 16) / 255;
+                        var b = parseInt(colorHex.substring(4, 6), 16) / 255;
+                        td.fillColor = [r, g, b];
+                    }
+                    tfProp.setValue(td);
+                    textsFound++;
+                } catch (eTr) {}
+            }
+        }
+
+        app.endUndoGroup();
+        
+        var details = (textsFound > 0) ? ' | Atualizadas ' + textsFound + ' camadas de texto.' : '';
+        return 'SUCCESS: Template adicionado na timeline!' + details;
+    } catch (e) {
+        if (app) app.endUndoGroup();
+        return 'ERROR: ' + e.toString();
     }
 }

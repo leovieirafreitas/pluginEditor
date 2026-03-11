@@ -230,6 +230,8 @@ function switchTab(tab) {
     document.getElementById('videosContent').style.display = (tab === 'videos') ? 'block' : 'none';
     document.getElementById('musicContent').style.display = (tab === 'music') ? 'block' : 'none';
     document.getElementById('sfxContent').style.display = (tab === 'sfx') ? 'block' : 'none';
+    const legendasEl = document.getElementById('legendasContent');
+    if (legendasEl) legendasEl.style.display = (tab === 'legendas') ? 'flex' : 'none';
 
     const sfxMainCatEl = document.getElementById('sfxMainCats');
     const musicMainCatEl = document.getElementById('musicMainCats');
@@ -281,6 +283,10 @@ function switchTab(tab) {
         } else if (!document.querySelector('#videosContent .clip-movie-grid') && !document.querySelector('#clipcafeWrap.detail-mode')) {
             renderMovieGrid();
         }
+    } else if (tab === 'legendas') {
+        if (globalSearch) globalSearch.style.display = 'none';
+        if (selYear) selYear.style.display = 'none';
+        initLegendasTab();
     }
 }
 
@@ -1813,4 +1819,249 @@ function generateFakePeaks(seed) {
         const v = Math.abs(Math.sin((s + i * 0.8) * 0.3) * 30 + Math.sin((s + i * 1.4) * 0.7) * 25 + Math.abs(Math.sin((s + i) * 0.15)) * 20);
         return Math.max(8, Math.min(100, Math.round((v / 75) * 90) + 8));
     });
+}
+
+// ─────────────────────────────────────────────────
+// LEGENDAS — MOGRT TEMPLATES
+// ─────────────────────────────────────────────────
+
+// Lista de templates MOGRT disponíveis
+// Cada template aponta para um arquivo .mogrt dentro da pasta Legendas
+const TEMPLATES_AEP = [
+    {
+        id: 'edittext01',
+        name: 'EditText 01',
+        category: 'Captions',
+        filename: 'textoteste01.aep',
+        folder: 'templates',
+        previewText: 'I just\\nKnow\\nBoy',
+        previewBg: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
+        badge: 'TEMPLATE',
+        textColor: '#ffffff',
+        inputs: ['Know', 'I just', 'Boy']
+    }
+    // Adicione mais templates aqui conforme necessário
+];
+
+let legendasInitialized = false;
+let selectedMogrt = null;
+let selectedLegendaColor = 'ffffff';
+
+function initLegendasTab() {
+    if (legendasInitialized) return;
+    legendasInitialized = true;
+
+    renderMogrtGrid('all');
+    setupLegendasEvents();
+}
+
+function renderMogrtGrid(category) {
+    const grid = document.getElementById('mogrtGrid');
+    if (!grid) return;
+
+    const filtered = category === 'all'
+        ? TEMPLATES_AEP
+        : TEMPLATES_AEP.filter(t => t.category === category);
+
+    if (!filtered.length) {
+        grid.innerHTML = '<div class="state-box"><p>Nenhum template encontrado.</p></div>';
+        return;
+    }
+
+    grid.innerHTML = '';
+    filtered.forEach(template => {
+        const card = document.createElement('div');
+        card.className = 'mogrt-card' + (selectedMogrt && selectedMogrt.id === template.id ? ' selected' : '');
+        card.dataset.id = template.id;
+
+        card.innerHTML = `
+            <div class="mogrt-preview" style="background:${template.previewBg}">
+                <div class="mogrt-preview-text" style="color:${template.textColor}">${template.previewText}</div>
+                <span class="mogrt-badge">${template.badge}</span>
+            </div>
+            <div class="mogrt-info">
+                <div class="mogrt-name" title="${template.name}">${template.name}</div>
+                <button class="mogrt-apply-btn">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    Selecionar
+                </button>
+            </div>`;
+
+        card.querySelector('.mogrt-apply-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectMogrtTemplate(template);
+        });
+
+        card.addEventListener('click', () => selectMogrtTemplate(template));
+        grid.appendChild(card);
+    });
+}
+
+function selectMogrtTemplate(template) {
+    selectedMogrt = template;
+
+    // Atualiza visual dos cards
+    document.querySelectorAll('.mogrt-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.id === template.id);
+    });
+
+    // Atualiza barra de selecionado
+    const bar = document.getElementById('mogrtSelectedBar');
+    const namePill = document.getElementById('mogrtSelectedName');
+    if (bar) bar.classList.add('visible');
+    if (namePill) namePill.textContent = template.name + '  —  ' + template.filename;
+
+    // Atualiza nome do editor
+    const editorName = document.getElementById('legendEditorTemplateName');
+    if (editorName) editorName.textContent = template.name;
+
+    // Atualiza preview do texto (Inputs múltiplos)
+    const container = document.getElementById('legendInputsContainer');
+    if (container) {
+        container.innerHTML = '';
+        if (template.inputs && template.inputs.length > 0) {
+            template.inputs.forEach((inpVal, idx) => {
+                const ta = document.createElement('textarea');
+                ta.className = 'legend-text-input';
+                ta.style.minHeight = '40px';
+                ta.style.padding = '10px';
+                ta.id = 'legendTextInput_' + idx;
+                ta.placeholder = 'Texto ' + (idx + 1) + '...';
+                ta.rows = "1";
+                ta.value = inpVal;
+                container.appendChild(ta);
+            });
+        }
+    }
+
+    showToast('Template "' + template.name + '" selecionado', 'success');
+}
+
+function setupLegendasEvents() {
+    // Filtro de categorias
+    document.querySelectorAll('.legenda-cat-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            document.querySelectorAll('.legenda-cat-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            renderMogrtGrid(pill.dataset.legcat);
+        });
+    });
+
+    // Cor do texto
+    document.querySelectorAll('.legend-color-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.legend-color-btn').forEach(b => b.classList.remove('active-color'));
+            btn.classList.add('active-color');
+            selectedLegendaColor = btn.dataset.color;
+        });
+    });
+
+    // Deselecionar template
+    const deselectBtn = document.getElementById('mogrtDeselectBtn');
+    if (deselectBtn) deselectBtn.addEventListener('click', () => {
+        selectedMogrt = null;
+        document.querySelectorAll('.mogrt-card').forEach(c => c.classList.remove('selected'));
+        const bar = document.getElementById('mogrtSelectedBar');
+        if (bar) bar.classList.remove('visible');
+        const editorName = document.getElementById('legendEditorTemplateName');
+        if (editorName) editorName.textContent = 'selecione um template';
+    });
+
+    // Botão Limpar texto
+    const clearBtn = document.getElementById('legendClearBtn');
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+        const inps = document.querySelectorAll('#legendInputsContainer .legend-text-input');
+        inps.forEach((inp, idx) => {
+            inp.value = '';
+            if(idx === 0) inp.focus();
+        });
+    });
+
+    // Botão Adicionar na Timeline
+    const applyBtn = document.getElementById('legendApplyBtn');
+    if (applyBtn) applyBtn.addEventListener('click', () => applyMogrtToTimeline());
+}
+
+function applyMogrtToTimeline() {
+    if (!selectedMogrt) {
+        showToast('Selecione um template de legenda primeiro!', 'error');
+        return;
+    }
+
+    const container = document.getElementById('legendInputsContainer');
+    const inputs = container ? container.querySelectorAll('.legend-text-input') : [];
+    
+    const textsArray = [];
+    inputs.forEach(inp => textsArray.push(inp.value.trim()));
+
+    const fontSize = document.getElementById('legendFontSize');
+    const size = parseInt(fontSize ? fontSize.value : '72') || 72;
+    const color = selectedLegendaColor || 'ffffff';
+
+    if (textsArray.length === 0 || textsArray.every(t => t === '')) {
+        showToast('Digite o texto da legenda!', 'error');
+        return;
+    }
+
+    const legendTextStr = textsArray.join('|||');
+
+    const applyBtn = document.getElementById('legendApplyBtn');
+    const APPLY_LABEL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> Adicionar na Timeline';
+
+    if (applyBtn) {
+        applyBtn.disabled = true;
+        applyBtn.innerHTML = '<div class="spinner-small" style="border-color:rgba(255,255,255,.2);border-top-color:#fff"></div> Adicionando...';
+    }
+
+    const resetBtn = () => { if (applyBtn) { applyBtn.disabled = false; applyBtn.innerHTML = APPLY_LABEL; } };
+
+    if (!csInterface) { resetBtn(); showToast('CSInterface indisponível (modo debug)', 'error'); return; }
+
+    let extRoot = '';
+    try {
+        const sp = (typeof SystemPath !== 'undefined' && SystemPath.EXTENSION)
+            ? SystemPath.EXTENSION : 'extension';
+        extRoot = csInterface.getSystemPath(sp) || '';
+    } catch (e) { extRoot = ''; }
+
+    if (!extRoot) {
+        try {
+            const href = window.location.href.replace(/\\/g, '/');
+            const m = href.match(/file:\/\/\/?(.+)\/[^\/]+\.html/i);
+            if (m) extRoot = decodeURIComponent(m[1]);
+        } catch (e2) { }
+    }
+
+    if (!extRoot) { resetBtn(); showToast('Não foi possível obter o diretório do plugin.', 'error'); return; }
+
+    // Normaliza PATH para Windows
+    extRoot = extRoot.replace(/\//g, '\\').replace(/^\\([A-Za-z]:)/, '$1').replace(/\\$/, '');
+    
+    // Caminho da pasta templates onde está o textoteste01.aep
+    const aepFullPath = extRoot + '\\Legendas\\templates\\textoteste01.aep';
+
+    // Envia usando encodeURIComponent para evitar problemas com caracteres exóticos (ExtendScript decodifica)
+    const encodedPath = encodeURIComponent(aepFullPath);
+    const encodedText = encodeURIComponent(legendTextStr);
+
+    // Repassando AEP em vez do MOGRT pra o novo método .jsx!
+    csInterface.evalScript(
+        'importAEPToTimeline("' + encodedPath + '","' + encodedText + '",' + size + ',"' + color + '")',
+        function (result) {
+            resetBtn();
+            if (!result || result === 'undefined' || result === 'null') {
+                showToast('After Effects não respondeu. Verifique se há uma Comp aberta.', 'error');
+            } else if (result.startsWith('ERROR:')) {
+                showToast(result.replace('ERROR:', '').trim().substring(0, 100), 'error');
+            } else if (result.startsWith('SUCCESS:')) {
+                showToast('✓ Legenda adicionada na timeline!', 'success');
+            } else {
+                showToast(result.substring(0, 100), 'info');
+            }
+        }
+    );
 }

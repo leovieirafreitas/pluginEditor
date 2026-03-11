@@ -1408,6 +1408,385 @@
             margin-top: -5px;
             display: none;
         }
+
+        /* ── LEGENDAS TAB ── */
+        #legendasContent {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .legendas-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Category sub-tabs for Legendas */
+        .legendas-cat-bar {
+            display: flex;
+            gap: 4px;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+            scrollbar-width: none;
+            flex-shrink: 0;
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        .legendas-cat-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .legenda-cat-pill {
+            padding: 4px 12px;
+            border-radius: 5px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .07);
+            color: var(--text2);
+            transition: all .15s;
+            white-space: nowrap;
+        }
+
+        .legenda-cat-pill:hover {
+            color: var(--text);
+            border-color: rgba(255, 255, 255, .15);
+        }
+
+        .legenda-cat-pill.active {
+            background: rgba(124, 109, 250, .12);
+            border-color: rgba(124, 109, 250, .4);
+            color: var(--accent);
+        }
+
+        /* MOGRT Template Grid */
+        .mogrt-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 8px;
+            padding: 10px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .mogrt-grid::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .mogrt-grid::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, .07);
+            border-radius: 3px;
+        }
+
+        .mogrt-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all .2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mogrt-card:hover {
+            border-color: rgba(124, 109, 250, .5);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .4);
+        }
+
+        .mogrt-card.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(124, 109, 250, .25);
+        }
+
+        .mogrt-preview {
+            width: 100%;
+            aspect-ratio: 9/16;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mogrt-preview-text {
+            font-size: 14px;
+            font-weight: 800;
+            color: #fff;
+            text-align: center;
+            padding: 8px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, .8);
+            letter-spacing: .5px;
+            line-height: 1.3;
+        }
+
+        .mogrt-preview-bg {
+            position: absolute;
+            inset: 0;
+            opacity: .15;
+        }
+
+        .mogrt-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(124, 109, 250, .8);
+            color: white;
+            font-size: 7px;
+            font-weight: 800;
+            padding: 2px 5px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+
+        .mogrt-info {
+            padding: 7px 8px 8px;
+        }
+
+        .mogrt-name {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mogrt-apply-btn {
+            width: 100%;
+            padding: 6px 4px;
+            background: rgba(124, 109, 250, .1);
+            border: 1px solid rgba(124, 109, 250, .25);
+            border-radius: 5px;
+            color: var(--accent);
+            font-size: 9px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: all .15s;
+            font-family: inherit;
+            text-transform: uppercase;
+        }
+
+        .mogrt-apply-btn:hover {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        /* EDITOR DE TEXTO DAS LEGENDAS */
+        .legends-editor-panel {
+            border-top: 1px solid var(--border);
+            background: #0e0e0e;
+            padding: 10px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .legends-editor-title {
+            font-size: 9px;
+            font-weight: 800;
+            color: var(--text3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legends-editor-title span {
+            color: var(--accent);
+        }
+
+        .legend-text-input {
+            width: 100%;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: inherit;
+            padding: 9px 11px;
+            resize: none;
+            min-height: 58px;
+            transition: border-color .2s;
+            outline: none;
+        }
+
+        .legend-text-input:focus {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, .06);
+        }
+
+        .legend-style-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .legend-style-label {
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--text3);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            flex-shrink: 0;
+        }
+
+        .legend-color-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            border: 2px solid rgba(255, 255, 255, .1);
+            cursor: pointer;
+            transition: all .15s;
+            flex-shrink: 0;
+        }
+
+        .legend-color-btn:hover {
+            border-color: rgba(255, 255, 255, .4);
+            transform: scale(1.1);
+        }
+
+        .legend-color-btn.active-color {
+            border-color: white;
+            transform: scale(1.1);
+        }
+
+        .legend-size-input {
+            width: 55px;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 11px;
+            font-family: inherit;
+            padding: 4px 7px;
+            border-radius: 5px;
+            outline: none;
+            transition: border-color .2s;
+        }
+
+        .legend-size-input:focus {
+            border-color: var(--accent);
+        }
+
+        .legend-action-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .legend-update-btn {
+            flex: 1;
+            padding: 8px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            border: none;
+            border-radius: 7px;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: opacity .15s, transform .1s;
+            font-family: inherit;
+        }
+
+        .legend-update-btn:hover {
+            opacity: .88;
+        }
+
+        .legend-update-btn:active {
+            transform: scale(.97);
+        }
+
+        .legend-clear-btn {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            color: var(--text3);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all .15s;
+        }
+
+        .legend-clear-btn:hover {
+            color: var(--text);
+            border-color: rgba(255, 255, 255, .2);
+        }
+
+        /* No template selected */
+        .legenda-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            color: var(--text3);
+            gap: 10px;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .legenda-empty-state svg {
+            opacity: .25;
+        }
+
+        /* Selected mogrt info bar */
+        .mogrt-selected-bar {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            background: rgba(124, 109, 250, .06);
+            border-bottom: 1px solid rgba(124, 109, 250, .15);
+            flex-shrink: 0;
+        }
+
+        .mogrt-selected-bar.visible {
+            display: flex;
+        }
+
+        .mogrt-selected-name {
+            flex: 1;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .mogrt-deselect-btn {
+            background: none;
+            border: none;
+            color: var(--text3);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: color .15s;
+        }
+
+        .mogrt-deselect-btn:hover {
+            color: var(--text);
+        }
     </style>
 </head>
 
@@ -1472,6 +1851,15 @@
                 </svg>
                 SFX <span class="tab-count" id="sfxTabCount">0</span>
             </div>
+            <div class="tab" data-tab="legendas">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                    <line x1="6" y1="10" x2="18" y2="10"></line>
+                    <line x1="6" y1="14" x2="14" y2="14"></line>
+                </svg>
+                LEGENDAS
+            </div>
         </div>
 
         <!-- SEARCH -->
@@ -1532,6 +1920,76 @@
             </div>
             <div id="sfxContent" class="tab-pane" style="display: none;">
                 <div class="sfx-list" id="sfxGrid"></div>
+            </div>
+
+            <!-- LEGENDAS CONTENT -->
+            <div id="legendasContent" class="tab-pane">
+                <div class="legendas-layout">
+
+                    <!-- Sub-categorias -->
+                    <div class="legendas-cat-bar" id="legendasCatBar">
+                        <div class="legenda-cat-pill active" data-legcat="all">Todos</div>
+                        <div class="legenda-cat-pill" data-legcat="Captions">Captions</div>
+                    </div>
+
+                    <!-- Barra de template selecionado -->
+                    <div class="mogrt-selected-bar" id="mogrtSelectedBar">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+                            stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span class="mogrt-selected-name" id="mogrtSelectedName">Nenhum selecionado</span>
+                        <button class="mogrt-deselect-btn" id="mogrtDeselectBtn" title="Desselecionar">✕</button>
+                    </div>
+
+                    <!-- Grid de templates -->
+                    <div class="mogrt-grid" id="mogrtGrid"></div>
+
+                    <!-- Painel editor de texto -->
+                    <div class="legends-editor-panel" id="legendsEditorPanel">
+                        <div class="legends-editor-title">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 20h9"></path>
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                            </svg>
+                            Editar Legenda — <span id="legendEditorTemplateName">selecione um template</span>
+                        </div>
+
+                        <div id="legendInputsContainer" style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;">
+                            <!-- Inputs dinâmicos vão aqui -->
+                        </div>
+
+                        <div class="legend-style-row">
+                            <span class="legend-style-label">Cor:</span>
+                            <div class="legend-color-btn active-color" data-color="ffffff" style="background:#ffffff" title="Branco"></div>
+                            <div class="legend-color-btn" data-color="ff4444" style="background:#ff4444" title="Vermelho"></div>
+                            <div class="legend-color-btn" data-color="44aaff" style="background:#44aaff" title="Azul"></div>
+                            <div class="legend-color-btn" data-color="ffdd44" style="background:#ffdd44"
+                                title="Amarelo"></div>
+                            <div class="legend-color-btn" data-color="a0ff6d" style="background:#a0ff6d" title="Verde">
+                            </div>
+                            <div class="legend-color-btn" data-color="7c6dfa" style="background:#7c6dfa" title="Roxo">
+                            </div>
+                            <span class="legend-style-label" style="margin-left:6px">Tamanho:</span>
+                            <input class="legend-size-input" id="legendFontSize" type="number" value="72" min="12"
+                                max="300" step="4">
+                        </div>
+
+                        <div class="legend-action-row">
+                            <button class="legend-update-btn" id="legendApplyBtn">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                Adicionar na Timeline
+                            </button>
+                            <button class="legend-clear-btn" id="legendClearBtn">Limpar</button>
+                        </div>
+                    </div>
+
+                </div>
             </div>
 
         </div>
