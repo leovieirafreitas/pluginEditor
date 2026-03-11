@@ -302,9 +302,96 @@ fn deactivate_premiere() -> Result<String, String> {
 }
 
 #[tauri::command]
-fn check_status() -> Result<(bool, bool), String> {
+fn activate_aftereffects(app: AppHandle) -> Result<String, String> {
+    // 1. Debug Mode (Windows)
+    #[cfg(target_os = "windows")]
+    {
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        for v in 7..14 {
+            let path = format!("Software\\Adobe\\CSXS.{}", v);
+            if let Ok((key, _)) = hkcu.create_subkey(&path) { let _ = key.set_value("PlayerDebugMode", &"1".to_string()); }
+        }
+    }
+
+    // 1. Debug Mode (macOS)
+    #[cfg(target_os = "macos")]
+    {
+        for v in 7..14 {
+            let cmd = format!("defaults write com.adobe.CSXS.{} PlayerDebugMode 1", v);
+            std::process::Command::new("sh").args(&["-c", &cmd]).status().ok();
+        }
+    }
+
+    // 2. Destinos
+    let mut final_paths = Vec::new();
+    if cfg!(target_os = "windows") {
+        if let Ok(appdata) = std::env::var("AppData") {
+            final_paths.push(PathBuf::from(appdata).join("Adobe").join("CEP").join("extensions"));
+        }
+    } else {
+        let home = std::env::var("HOME").unwrap_or_default();
+        final_paths.push(PathBuf::from("/Library/Application Support/Adobe/CEP/extensions"));
+        final_paths.push(PathBuf::from(&home).join("Library/Application Support/Adobe/CEP/extensions"));
+    }
+
+    let src_root = get_resource_path(&app, "AfterEffects")?;
+    let src = src_root.join("com.editormaster.premium.v1");
+    let mut success = false;
+
+    for base in final_paths {
+        // Usamos um nome de pasta diferente para o After Effects para evitar conflito
+        let dest = base.join("com.editormaster.premium.ae.v1");
+        if dest.exists() { fs::remove_dir_all(&dest).ok(); }
+        if fs::create_dir_all(&dest).is_ok() {
+            let mut options = CopyOptions::new();
+            options.content_only = true;
+            options.overwrite = true;
+            if copy(&src, &dest, &options).is_ok() {
+                success = true;
+                let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
+                let arg = if cfg!(target_os = "windows") { "/C" } else { "-c" };
+                let mut cmd = std::process::Command::new(shell);
+                cmd.args(&[arg, "npm install --production --silent"]).current_dir(&dest);
+                #[cfg(windows)]
+                cmd.creation_flags(0x08000000);
+                cmd.status().ok();
+            }
+        }
+    }
+
+    if success {
+        Ok("Adobe After Effects instalado".into())
+    } else {
+        Err("Erro ao criar pastas do After Effects. Verifique permissões.".into())
+    }
+}
+
+#[tauri::command]
+fn deactivate_aftereffects() -> Result<String, String> {
+    let mut final_paths = Vec::new();
+    if cfg!(target_os = "windows") {
+        if let Ok(ad) = std::env::var("AppData") {
+            final_paths.push(PathBuf::from(ad).join("Adobe/CEP/extensions"));
+        }
+    } else {
+        let home = std::env::var("HOME").unwrap_or_default();
+        final_paths.push(PathBuf::from("/Library/Application Support/Adobe/CEP/extensions"));
+        final_paths.push(PathBuf::from(&home).join("Library/Application Support/Adobe/CEP/extensions"));
+    }
+
+    for base in final_paths {
+        let p = base.join("com.editormaster.premium.ae.v1");
+        if p.exists() { fs::remove_dir_all(&p).ok(); }
+    }
+
+    Ok("Integração After Effects removida".into())
+}
+
+#[tauri::command]
+fn check_status() -> Result<(bool, bool, bool), String> {
     let mut davinci = false;
     let mut premiere = false;
+    let mut aftereffects = false;
 
     // DaVinci Status
     let mut dv_paths = Vec::new();
@@ -316,26 +403,26 @@ fn check_status() -> Result<(bool, bool), String> {
         dv_paths.push(PathBuf::from(&home).join("Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
         dv_paths.push(PathBuf::from(&home).join("Library/Containers/com.blackmagic-design.DaVinciResolve/Data/Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"));
     }
-
     for p in dv_paths {
         if p.join("com.editormaster.premium.v1").exists() { davinci = true; break; }
     }
 
-    // Premiere Status
-    let mut pr_paths = Vec::new();
+    // Premiere & After Effects Status (pastas diferentes agora)
+    let mut ad_paths = Vec::new();
     if cfg!(target_os = "windows") {
-        if let Ok(ad) = std::env::var("AppData") { pr_paths.push(PathBuf::from(ad).join("Adobe/CEP/extensions")); }
+        if let Ok(ad) = std::env::var("AppData") { ad_paths.push(PathBuf::from(ad).join("Adobe/CEP/extensions")); }
     } else {
         let home = std::env::var("HOME").unwrap_or_default();
-        pr_paths.push(PathBuf::from("/Library/Application Support/Adobe/CEP/extensions"));
-        pr_paths.push(PathBuf::from(&home).join("Library/Application Support/Adobe/CEP/extensions"));
+        ad_paths.push(PathBuf::from("/Library/Application Support/Adobe/CEP/extensions"));
+        ad_paths.push(PathBuf::from(&home).join("Library/Application Support/Adobe/CEP/extensions"));
     }
 
-    for p in pr_paths {
-        if p.join("com.editormaster.premium.v1").exists() { premiere = true; break; }
+    for p in &ad_paths {
+        if p.join("com.editormaster.premium.v1").exists() { premiere = true; }
+        if p.join("com.editormaster.premium.ae.v1").exists() { aftereffects = true; }
     }
 
-    Ok((davinci, premiere))
+    Ok((davinci, premiere, aftereffects))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -345,8 +432,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             activate_davinci, 
             activate_premiere,
+            activate_aftereffects,
             deactivate_davinci,
             deactivate_premiere,
+            deactivate_aftereffects,
             check_status
         ])
         .run(tauri::generate_context!())

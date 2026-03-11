@@ -1,0 +1,597 @@
+{
+	Tools = ordered() {
+		TextAnimationPresets08 = GroupOperator {
+			Inputs = ordered() {
+				Input1 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "StyledText",
+				},
+				Input2 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Font",
+					ControlGroup = 2,
+				},
+				Input3 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Style",
+					ControlGroup = 2,
+				},
+				Input4 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Red1Clone",
+					Name = "Color",
+					ControlGroup = 3,
+					Default = 1,
+				},
+				Input5 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Green1Clone",
+					ControlGroup = 3,
+					Default = 1,
+				},
+				Input6 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Blue1Clone",
+					ControlGroup = 3,
+					Default = 1,
+				},
+				Input7 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Alpha1Clone",
+					ControlGroup = 3,
+					Default = 1,
+				},
+				Input8 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "Size",
+					Default = 0.0658,
+				},
+				Input9 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "CharacterSpacingClone",
+					Name = "Tracking",
+					Default = 1,
+				},
+				Input10 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "LineSpacingClone",
+					Default = 1,
+				},
+				Input11 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "VerticalJustificationTop",
+					Name = "V Anchor",
+					ControlGroup = 7,
+				},
+				Input12 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "VerticalJustificationCenter",
+					ControlGroup = 7,
+				},
+				Input13 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "VerticalJustificationBottom",
+					ControlGroup = 7,
+				},
+				Input14 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "VerticalTopCenterBottom",
+					Default = 0,
+				},
+				Input15 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "CenterOnBaseOfFirstLine",
+					Default = 0,
+				},
+				Input16 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "HorizontalJustificationLeft",
+					Name = "H Anchor",
+					ControlGroup = 10,
+				},
+				Input17 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "HorizontalJustificationCenter",
+					ControlGroup = 10,
+				},
+				Input18 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "HorizontalJustificationRight",
+					ControlGroup = 10,
+				},
+				Input19 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "HorizontalLeftCenterRight",
+					Default = 0,
+				},
+				Input20 = InstanceInput {
+					SourceOp = "Text1",
+					Source = "HorizontallyJustified",
+					Default = 0,
+				},
+				Input21 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "StyledText",
+				},
+				Input22 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "Font",
+					ControlGroup = 14,
+				},
+				Input23 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "Style",
+					ControlGroup = 14,
+				},
+				Input24 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "Red1Clone",
+					Name = "Color",
+					ControlGroup = 15,
+					Default = 1,
+				},
+				Input25 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "Green1Clone",
+					ControlGroup = 15,
+					Default = 1,
+				},
+				Input26 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "Blue1Clone",
+					ControlGroup = 15,
+					Default = 1,
+				},
+				Input27 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "Alpha1Clone",
+					ControlGroup = 15,
+					Default = 1,
+				},
+				Input28 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "Size",
+					Default = 0.0658,
+				},
+				Input29 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "CharacterSpacingClone",
+					Name = "Tracking",
+					Default = 1,
+				},
+				Input30 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "LineSpacingClone",
+					Default = 1,
+				},
+				Input31 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "VerticalJustificationTop",
+					Name = "V Anchor",
+					ControlGroup = 19,
+				},
+				Input32 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "VerticalJustificationCenter",
+					ControlGroup = 19,
+				},
+				Input33 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "VerticalJustificationBottom",
+					ControlGroup = 19,
+				},
+				Input34 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "VerticalTopCenterBottom",
+					Default = 0,
+				},
+				Input35 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "CenterOnBaseOfFirstLine",
+					Default = 0,
+				},
+				Input36 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "HorizontalJustificationLeft",
+					Name = "H Anchor",
+					ControlGroup = 22,
+				},
+				Input37 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "HorizontalJustificationCenter",
+					ControlGroup = 22,
+				},
+				Input38 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "HorizontalJustificationRight",
+					ControlGroup = 22,
+				},
+				Input39 = InstanceInput {
+					SourceOp = "Text2",
+					Source = "HorizontalLeftCenterRight",
+					Default = 0,
+				},
+				Input40 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "StyledText",
+				},
+				Input41 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "Font",
+					ControlGroup = 25,
+				},
+				Input42 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "Style",
+					ControlGroup = 25,
+				},
+				Input43 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "Red1Clone",
+					Name = "Color",
+					ControlGroup = 26,
+					Default = 1,
+				},
+				Input44 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "Green1Clone",
+					ControlGroup = 26,
+					Default = 1,
+				},
+				Input45 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "Blue1Clone",
+					ControlGroup = 26,
+					Default = 1,
+				},
+				Input46 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "Alpha1Clone",
+					ControlGroup = 26,
+					Default = 1,
+				},
+				Input47 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "Size",
+					Default = 0.0658,
+				},
+				Input48 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "CharacterSpacingClone",
+					Name = "Tracking",
+					Default = 1,
+				},
+				Input49 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "LineSpacingClone",
+					Default = 1,
+				},
+				Input50 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "VerticalJustificationTop",
+					Name = "V Anchor",
+					ControlGroup = 30,
+				},
+				Input51 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "VerticalJustificationCenter",
+					ControlGroup = 30,
+				},
+				Input52 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "VerticalJustificationBottom",
+					ControlGroup = 30,
+				},
+				Input53 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "VerticalTopCenterBottom",
+					Default = 0,
+				},
+				Input54 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "CenterOnBaseOfFirstLine",
+					Default = 0,
+				},
+				Input55 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "HorizontalJustificationLeft",
+					Name = "H Anchor",
+					ControlGroup = 33,
+				},
+				Input56 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "HorizontalJustificationCenter",
+					ControlGroup = 33,
+				},
+				Input57 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "HorizontalJustificationRight",
+					ControlGroup = 33,
+				},
+				Input58 = InstanceInput {
+					SourceOp = "Text3",
+					Source = "HorizontalLeftCenterRight",
+					Default = 0,
+				}
+			},
+			Outputs = {
+				Output1 = InstanceOutput {
+					SourceOp = "Text2LayoutSize",
+					Source = "Value",
+				},
+				Output2 = InstanceOutput {
+					SourceOp = "Text2Opacity1",
+					Source = "Value",
+				},
+				Output3 = InstanceOutput {
+					SourceOp = "Text3LayoutSize",
+					Source = "Value",
+				},
+				Output4 = InstanceOutput {
+					SourceOp = "Text3Opacity1",
+					Source = "Value",
+				},
+				MainOutput1 = InstanceOutput {
+					SourceOp = "KeyframeStretcher1",
+					Source = "Result",
+				}
+			},
+			ViewInfo = GroupInfo { Pos = { 0, 0 } },
+			Tools = ordered() {
+				Text1 = TextPlus {
+					NameSet = true,
+					Inputs = {
+						Width = Input { Value = 1920, },
+						Height = Input { Value = 1080, },
+						UseFrameFormatSettings = Input { Value = 1, },
+						["Gamut.SLogVersion"] = Input { Value = FuID { "SLog2" }, },
+						LayoutSize = Input {
+							SourceOp = "Text1LayoutSize",
+							Source = "Value",
+						},
+						LayoutRotation = Input { Value = 1, },
+						CharacterOffsetZ = Input {
+							SourceOp = "Text1CharacterOffsetZ",
+							Source = "Value",
+						},
+						TransformRotation = Input { Value = 1, },
+						Opacity1 = Input {
+							SourceOp = "Text1Opacity1",
+							Source = "Value",
+						},
+						Softness1 = Input { Value = 1, },
+						StyledText = Input { Value = "First text.", },
+						Font = Input { Value = "Poppins", },
+						Style = Input { Value = "Light", },
+						Size = Input { Value = 0.0658, },
+						VerticalJustificationNew = Input { Value = 3, },
+						HorizontalJustificationNew = Input { Value = 3, }
+					},
+					ViewInfo = OperatorInfo { Pos = { 202.667, 77.0606 } },
+				},
+				Text1LayoutSize = BezierSpline {
+					SplineColor = { Red = 146, Green = 194, Blue = 241 },
+					CtrlWZoom = false,
+					KeyFrames = {
+						[0] = { 1, RH = { 25.6666666666667, 1 } },
+						[77] = { 1.5, LH = { 51.3333333333333, 1.5 } }
+					}
+				},
+				Text1CharacterOffsetZ = BezierSpline {
+					SplineColor = { Red = 28, Green = 216, Blue = 243 },
+					CtrlWZoom = false,
+					KeyFrames = {
+						[15] = { 0, RH = { 16.6666666666667, 0 } },
+						[20] = { -0.041, LH = { 18.3333333333333, -0.0273333333333333 } }
+					}
+				},
+				Text1Opacity1 = BezierSpline {
+					SplineColor = { Red = 179, Green = 28, Blue = 244 },
+					CtrlWZoom = false,
+					KeyFrames = {
+						[0] = { 0, RH = { 0.333333333333333, 0.333333333333333 }, Flags = { Linear = true } },
+						[1] = { 1, LH = { 0.666666666666667, 0.666666666666667 }, RH = { 7.33333333333333, 1 }, Flags = { Linear = true } },
+						[20] = { 1, LH = { 13.6666666666667, 1 }, RH = { 20.0000000003333, 0.666666666666667 }, Flags = { Linear = true } },
+						[20.000000001] = { 0, LH = { 20.0000000006667, 0.333333333333333 }, Flags = { Linear = true }, offset = 1e-09 }
+					}
+				},
+				Merge1 = Merge {
+					Inputs = {
+						Background = Input {
+							SourceOp = "Text1",
+							Source = "Output",
+						},
+						PerformDepthMerge = Input { Value = 0, }
+					},
+					ViewInfo = OperatorInfo { Pos = { 304.667, 137.061 } },
+				},
+				Text2 = TextPlus {
+					NameSet = true,
+					Inputs = {
+						Width = Input { Value = 1920, },
+						Height = Input { Value = 1080, },
+						UseFrameFormatSettings = Input { Value = 1, },
+						["Gamut.SLogVersion"] = Input { Value = FuID { "SLog2" }, },
+						LayoutSize = Input {
+							SourceOp = "Text2LayoutSize",
+							Source = "Value",
+						},
+						LayoutRotation = Input { Value = 1, },
+						CharacterOffsetZ = Input {
+							SourceOp = "Text2CharacterOffsetZ",
+							Source = "Value",
+						},
+						TransformRotation = Input { Value = 1, },
+						Opacity1 = Input {
+							SourceOp = "Text2Opacity1",
+							Source = "Value",
+						},
+						Softness1 = Input { Value = 1, },
+						StyledText = Input { Value = "Second text.", },
+						Font = Input { Value = "Poppins", },
+						Style = Input { Value = "SemiBold", },
+						Size = Input { Value = 0.0658, },
+						VerticalJustificationNew = Input { Value = 3, },
+						HorizontalJustificationNew = Input { Value = 3, }
+					},
+					ViewInfo = OperatorInfo { Pos = { 450, 20.3636 } },
+				},
+				Text2LayoutSize = BezierSpline {
+					SplineColor = { Red = 146, Green = 194, Blue = 241 },
+					CtrlWZoom = false,
+					NameSet = true,
+					KeyFrames = {
+						[4] = { 1, RH = { 34.6666666666667, 1 } },
+						[96] = { 1.5, LH = { 65.3333333333333, 1.5 } }
+					}
+				},
+				Text2CharacterOffsetZ = BezierSpline {
+					SplineColor = { Red = 28, Green = 216, Blue = 243 },
+					CtrlWZoom = false,
+					KeyFrames = {
+						[33] = { 0, RH = { 35.6, 0 } },
+						[38] = { -0.075, LH = { 34.06, -0.0879999999999999 } }
+					}
+				},
+				Text2Opacity1 = BezierSpline {
+					SplineColor = { Red = 179, Green = 28, Blue = 244 },
+					CtrlWZoom = false,
+					NameSet = true,
+					KeyFrames = {
+						[19] = { 0, RH = { 19.3333333333333, 0.333333333333333 }, Flags = { Linear = true } },
+						[20] = { 1, LH = { 19.6666666666667, 0.666666666666667 }, RH = { 25.3333333333333, 1 }, Flags = { Linear = true } },
+						[36] = { 1, LH = { 30.6666666666667, 1 }, RH = { 36.3333333333333, 0.666666666666667 }, Flags = { Linear = true } },
+						[37] = { 0, LH = { 36.6666666666667, 0.333333333333333 }, Flags = { Linear = true } }
+					}
+				},
+				Merge1_1 = Merge {
+					Inputs = {
+						Background = Input {
+							SourceOp = "Text2",
+							Source = "Output",
+						},
+						Foreground = Input {
+							SourceOp = "Merge1",
+							Source = "Output",
+						},
+						PerformDepthMerge = Input { Value = 0, }
+					},
+					ViewInfo = OperatorInfo { Pos = { 424, 85.2121 } },
+				},
+				Text3 = TextPlus {
+					NameSet = true,
+					Inputs = {
+						Width = Input { Value = 1920, },
+						Height = Input { Value = 1080, },
+						UseFrameFormatSettings = Input { Value = 1, },
+						["Gamut.SLogVersion"] = Input { Value = FuID { "SLog2" }, },
+						LayoutSize = Input {
+							SourceOp = "Text3LayoutSize",
+							Source = "Value",
+						},
+						LayoutRotation = Input { Value = 1, },
+						TransformRotation = Input { Value = 1, },
+						Opacity1 = Input {
+							SourceOp = "Text3Opacity1",
+							Source = "Value",
+						},
+						Softness1 = Input { Value = 1, },
+						StyledText = Input {
+							SourceOp = "Follower1",
+							Source = "StyledText",
+						},
+						Font = Input { Value = "Poppins", },
+						Style = Input { Value = "Bold", },
+						Size = Input { Value = 0.0658, },
+						VerticalJustificationNew = Input { Value = 3, },
+						HorizontalJustificationNew = Input { Value = 3, }
+					},
+					ViewInfo = OperatorInfo { Pos = { 582, 19.4848 } },
+				},
+				Text3LayoutSize = BezierSpline {
+					SplineColor = { Red = 146, Green = 194, Blue = 241 },
+					CtrlWZoom = false,
+					NameSet = true,
+					KeyFrames = {
+						[-9] = { 1, RH = { 13.6666666666667, 1 } },
+						[59] = { 1.5, LH = { 26, 1.5 } }
+					}
+				},
+				Text3Opacity1 = BezierSpline {
+					SplineColor = { Red = 179, Green = 28, Blue = 244 },
+					CtrlWZoom = false,
+					NameSet = true,
+					KeyFrames = {
+						[37] = { 0, RH = { 37.0000000003333, 0.333333333333333 }, Flags = { Linear = true } },
+						[37.000000001] = { 1, LH = { 37.0000000006667, 0.666666666666667 }, RH = { 48.3333333333333, 1 }, Flags = { Linear = true }, offset = 1e-09 },
+						[71] = { 1, LH = { 59.6666666666667, 1 }, RH = { 73.6666666666667, 0.619047619047619 }, Flags = { Linear = true } },
+						[79] = { 0, LH = { 76.3333333333333, 0 } }
+					}
+				},
+				Follower1 = StyledTextFollower {
+					CtrlWZoom = false,
+					Inputs = {
+						Order = Input { Value = 7, },
+						Text = Input {
+							Value = StyledText {
+								Value = "Third Text"
+							},
+						},
+						SelectTransform = Input { Value = 2, },
+						LineOffsetZ = Input {
+							SourceOp = "Follower1LineOffsetZ",
+							Source = "Value",
+						},
+						TransformRotation = Input { Value = 1, },
+						Softness1 = Input { Value = 1, },
+						Softness2 = Input { Value = 1, },
+						Softness3 = Input { Value = 1, },
+						Softness4 = Input { Value = 1, },
+						Softness5 = Input { Value = 1, },
+						Softness6 = Input { Value = 1, },
+						Softness7 = Input { Value = 1, },
+						Softness8 = Input { Value = 1, }
+					},
+				},
+				Follower1LineOffsetZ = BezierSpline {
+					SplineColor = { Red = 229, Green = 91, Blue = 114 },
+					CtrlWZoom = false,
+					NameSet = true,
+					KeyFrames = {
+						[64] = { 0, RH = { 83.313532, 0 } },
+						[86.9923] = { -0.041, LH = { 67.985332, -0.03946718 }, RH = { 86.9948666666667, -0.041 } },
+						[87] = { -0.041, LH = { 86.9974333333333, -0.041 }, Flags = { Linear = true } }
+					}
+				},
+				Merge1_1_1 = Merge {
+					Inputs = {
+						Background = Input {
+							SourceOp = "Text3",
+							Source = "Output",
+						},
+						Foreground = Input {
+							SourceOp = "Merge1_1",
+							Source = "Output",
+						},
+						PerformDepthMerge = Input { Value = 0, }
+					},
+					ViewInfo = OperatorInfo { Pos = { 556, 84.3334 } },
+				},
+				KeyframeStretcher1 = KeyStretcher {
+					CtrlWZoom = false,
+					Inputs = {
+						Keyframes = Input {
+							SourceOp = "Merge1_1_1",
+							Source = "Output",
+						},
+						SourceEnd = Input { Value = 84, },
+						StretchStart = Input { Value = 56, },
+						StretchEnd = Input { Value = 67, }
+					},
+					ViewInfo = OperatorInfo { Pos = { 728, 37.0606 } },
+				}
+			},
+		}
+	},
+	ActiveTool = "TextAnimationPresets08"
+}

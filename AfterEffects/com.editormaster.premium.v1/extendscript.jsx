@@ -1,7 +1,7 @@
 /**
  * ============================================================
- * EDITLAB PRO - extendscript.jsx (Premiere Pro Only)
- * Native Layer: Video/Audio download and Premiere Pro import
+ * EDITLAB PRO - extendscript.jsx (After Effects Only)
+ * Native Layer: Video/Audio download and AE import
  * ============================================================
  */
 
@@ -82,18 +82,23 @@ function importVideoFromURL(videoUrl, videoTitle) {
             return "ERROR: Arquivo não gerado após " + waited + "s.";
         }
 
-        if (!app.project.activeSequence) {
-            cleanUp([vbs, finalFile, new File(logPath)]);
-            return "ERROR: Nenhuma sequência aberta.";
-        }
-
-        var imported = app.project.importFiles([finalPath], true, app.project.rootItem, false);
+        // AE specific import
+        var io = new ImportOptions(finalFile);
+        var item = app.project.importFile(io);
         cleanUp([vbs, new File(logPath)]);
 
-        if (!imported || imported.length === 0) {
-            return "ERROR: Premiere não conseguiu importar o arquivo";
+        if (!item) return "ERROR: After Effects não conseguiu importar o arquivo";
+        
+        try { item.name = videoTitle; } catch(e) {}
+
+        var activeItem = app.project.activeItem;
+        if (activeItem && (activeItem instanceof CompItem)) {
+            var layer = activeItem.layers.add(item);
+            if (layer) layer.startTime = activeItem.time;
+            return "SUCCESS: " + videoTitle + " (Adicionado na agulha)";
         }
-        return "SUCCESS: " + videoTitle;
+        
+        return "SUCCESS: " + videoTitle + " (No Project Panel)";
     } catch (e) {
         return "ERROR: " + e.toString();
     }
@@ -104,46 +109,19 @@ function importLocalAudio(filePath, audioTitle) {
         var f = new File(filePath);
         if (!f.exists) return "ERROR: Arquivo nao encontrado.";
 
-        var isReady = false;
-        for (var t = 0; t < 5; t++) {
-            if (f.open("r")) { f.close(); isReady = true; break; }
-            $.sleep(500);
+        var io = new ImportOptions(f);
+        var item = app.project.importFile(io);
+        if (!item) return "ERROR: AE nao conseguiu importar o audio";
+        
+        try { item.name = audioTitle; } catch(e) {}
+
+        var activeItem = app.project.activeItem;
+        if (activeItem && (activeItem instanceof CompItem)) {
+            var layer = activeItem.layers.add(item);
+            if (layer) layer.startTime = activeItem.time;
+            return "SUCCESS: " + audioTitle + " (Inserido na agulha)";
         }
-        if (!isReady) return "ERROR: O arquivo existe mas o Premiere nao consegue acessa-lo.";
-
-        var seq = app.project.activeSequence;
-        if (!seq) return "ERROR: Abra uma timeline no Premiere antes de importar";
-
-        for (var r = 0; r < 3; r++) {
-            try {
-                var res = app.project.importFiles([f.fsName], true, app.project.rootItem, false);
-                if (res !== false) break; 
-            } catch (e) { }
-            $.sleep(1000);
-        }
-
-        var item = findProjectItem(app.project.rootItem, f.name, 0);
-        if (!item) return "ERROR: Premiere importou mas o item nao foi encontrado no projeto.";
-
-        try { item.name = audioTitle; } catch (ne) { }
-
-        var timeSeconds = 0;
-        try { timeSeconds = seq.getPlayerPosition().seconds; } catch (e) { timeSeconds = 0; }
-
-        if (seq.audioTracks.numTracks === 0) return "SUCCESS_POOL: No Media Pool (Sem faixa ativa).";
-
-        var track = seq.audioTracks[0];
-        try {
-            track.insertClip(item, timeSeconds);
-            return "SUCCESS: " + audioTitle;
-        } catch (e1) {
-            try {
-                track.insertClip(item, 0);
-                return "SUCCESS: " + audioTitle;
-            } catch (e2) {
-                return "SUCCESS_POOL: No Media Pool. Erro ao inserir.";
-            }
-        }
+        return "SUCCESS: " + audioTitle + " (Project Panel)";
     } catch (e) {
         return "ERROR: " + e.toString();
     }
@@ -180,78 +158,26 @@ function importLocalVideo(filePath, videoTitle, isBase64) {
         var f = new File(realPath);
         if (!f.exists) return "ERROR: Video nao encontrado.";
 
-        var isReady = false;
-        for (var t = 0; t < 5; t++) {
-            if (f.open("r")) { f.close(); isReady = true; break; }
-            $.sleep(500);
+        var io = new ImportOptions(f);
+        var item = app.project.importFile(io);
+        if (!item) return "ERROR: AE nao conseguiu importar o video";
+        
+        try { item.name = realTitle; } catch(e) {}
+
+        var activeItem = app.project.activeItem;
+        if (activeItem && (activeItem instanceof CompItem)) {
+            var layer = activeItem.layers.add(item);
+            if (layer) layer.startTime = activeItem.time;
+            return "SUCCESS: " + realTitle + " (Inserido na agulha)";
         }
-        if (!isReady) return "ERROR: Video bloqueado pelo sistema.";
-
-        for (var r2 = 0; r2 < 3; r2++) {
-            try {
-                app.project.importFiles([f.fsName], true, app.project.rootItem, false);
-                break;
-            } catch (eImp) { }
-            $.sleep(1000);
-        }
-
-        var item = findProjectItem(app.project.rootItem, f.name, 0);
-        if (!item) return "ERROR: Falha ao localizar o video importado.";
-
-        try { item.name = realTitle; } catch (ne) { }
-
-        var seq = null;
-        try { seq = app.project.activeSequence; } catch (seqErr) { }
-
-        if (!seq) return "SUCCESS_POOL: Video importado no Media Pool.";
-
-        var timeSeconds = 0;
-        try { timeSeconds = seq.getPlayerPosition().seconds; } catch (pe) { }
-
-        if (seq.videoTracks.numTracks > 0) {
-            try {
-                seq.videoTracks[0].insertClip(item, timeSeconds);
-                return "SUCCESS: " + realTitle;
-            } catch (e1) {
-                try {
-                    seq.videoTracks[0].insertClip(item, 0);
-                    return "SUCCESS: " + realTitle;
-                } catch (e2) {
-                    return "SUCCESS_POOL: No Media Pool. Erro ao inserir.";
-                }
-            }
-        } else {
-            return "SUCCESS_POOL: No Media Pool. Sem faixas de video.";
-        }
+        return "SUCCESS: " + realTitle + " (Project Panel)";
     } catch (e) {
         return "ERROR: " + e.toString();
     }
-}
-
-function findProjectItem(folder, targetName, depth) {
-    if (depth > 8) return null;
-    for (var i = 0; i < folder.children.numItems; i++) {
-        var child = folder.children[i];
-        if (child.type !== 2) {
-            if (child.name === targetName || child.name === targetName.replace(/\.[^.]+$/, '')) return child;
-        } else {
-            var found = findProjectItem(child, targetName, depth + 1);
-            if (found) return found;
-        }
-    }
-    return null;
 }
 
 function cleanUp(files) {
     for (var i = 0; i < files.length; i++) {
         try { if (files[i] && files[i].exists) files[i].remove(); } catch (e) { }
     }
-}
-
-function getActiveSequence() {
-    try {
-        var s = app.project.activeSequence;
-        if (s) return "OK: " + s.name;
-        return "ERROR: Sem sequência ativa";
-    } catch (e) { return "ERROR: " + e.toString(); }
 }

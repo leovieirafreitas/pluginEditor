@@ -31,7 +31,8 @@
     ],
     "resources": [
       "../../Davinci/**/*",
-      "../../Premiere/**/*"
+      "../../Premiere/**/*",
+      "../../AfterEffects/**/*"
     ]
   }
 }

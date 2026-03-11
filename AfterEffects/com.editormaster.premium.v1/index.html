@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EditLab Pro</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --bg: #0a0a0a;
+            --bg-card: #111111;
+            --bg-hover: #1a1a1a;
+            --accent: #7c6dfa;
+            --accent-2: #fa6d9f;
+            --accent-glow: rgba(124, 109, 250, 0.2);
+            --green: #a0ff6d;
+            --text: #f0f0f0;
+            --text2: #ccc;
+            --text3: #777;
+            --bg2: #1a1a1a;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+            font-size: 12px;
+        }
+
+        /* ── ICONS (inline SVG helper) ── */
+        .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon svg {
+            display: block;
+        }
+
+        /* ── APP ── */
+        #appScreen {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* ── TOP TABS ── */
+        .tab-bar {
+            display: flex;
+            background: #080808;
+            border-bottom: 1px solid var(--border);
+            padding: 0 5px;
+            gap: 0;
+            flex-shrink: 0;
+            overflow-x: auto;
+            white-space: nowrap;
+            scrollbar-width: none;
+        }
+
+        .tab-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 11px 14px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text2);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all .2s;
+            user-select: none;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+        }
+
+        .tab svg {
+            opacity: .5;
+            transition: opacity .2s;
+        }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab:hover svg {
+            opacity: .8;
+        }
+
+        .tab.active {
+            color: var(--text);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab.active svg {
+            opacity: 1;
+            stroke: var(--accent);
+        }
+
+        .tab-count {
+            background: rgba(124, 109, 250, .15);
+            color: var(--accent);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 8px;
+        }
+
+        /* ── SEARCH ── */
+        .search-bar {
+            padding: 8px 10px;
+            background: #080808;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .search-wrap {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            pointer-events: none;
+            color: var(--text3);
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 10px 8px 32px;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            color: var(--text);
+            font-size: 12px;
+            font-family: inherit;
+            transition: all .2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, .08);
+            box-shadow: 0 0 0 2px rgba(110, 86, 207, .15);
+        }
+
+        /* Year Select Styling */
+        #clipcafeYear {
+            background: #111 !important;
+            border: 1px solid var(--border);
+            color: #ffffff !important;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            outline: none;
+            transition: all .2s;
+            appearance: none;
+            min-width: 120px;
+            height: 38px;
+            text-align: center;
+        }
+
+        #clipcafeYear option {
+            background: #1a1a1a !important;
+            color: #ffffff !important;
+            padding: 10px;
+        }
+
+        #clipcafeYear:hover {
+            border-color: var(--accent);
+            background: #181818 !important;
+        }
+
+        #clipcafeYear:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(110, 86, 207, .15);
+        }
+
+        /* Modern Scrollbars for Premium Look */
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            border: 2px solid var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .search-input::placeholder {
+            color: var(--text3);
+        }
+
+        /* ── SFX MAIN CATEGORY TABS ── */
+        #sfxMainCats {
+            display: none;
+            overflow-x: auto;
+            flex-shrink: 0;
+            background: #080808;
+            border-bottom: 1px solid var(--border);
+            padding: 0 10px;
+        }
+
+        #sfxMainCats,
+        #musicMainCats {
+            background: rgba(0, 0, 0, .2);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+
+        #sfxMainCats::-webkit-scrollbar,
+        #musicMainCats::-webkit-scrollbar {
+            display: none;
+        }
+
+        .sfx-cat-row {
+            display: flex;
+            overflow-x: auto;
+            white-space: nowrap;
+            gap: 4px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding-bottom: 2px;
+        }
+
+        .sfx-cat-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .sfx-main-tab {
+            padding: 9px 13px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text2);
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            border-bottom: 2px solid transparent;
+            transition: all .15s;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .sfx-main-tab:hover {
+            color: var(--text);
+        }
+
+        .sfx-main-tab.active {
+            color: var(--green);
+            border-bottom-color: var(--green);
+        }
+
+        /* ── FILTER PILLS ── */
+        .filter-row {
+            display: flex;
+            gap: 4px;
+            padding: 7px 10px;
+            overflow-x: auto;
+            white-space: nowrap;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .filter-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .filter-pill {
+            padding: 3px 9px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 700;
+            cursor: pointer;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .07);
+            color: var(--text2);
+            transition: all .15s;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+
+        .filter-pill:hover {
+            color: var(--text);
+            border-color: rgba(255, 255, 255, .15);
+            background: rgba(255, 255, 255, .07);
+        }
+
+        .filter-pill.active {
+            background: rgba(160, 255, 109, .08);
+            border-color: rgba(160, 255, 109, .4);
+            color: var(--green);
+        }
+
+        /* ── SFX COUNT ── */
+        #sfxCountBar {
+            display: none;
+            padding: 3px 12px;
+            background: #080808;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .sfx-count-text {
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--text3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sfx-count-text span {
+            color: var(--text2);
+        }
+
+        /* ── CONTENT AREA ── */
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .content-area::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .content-area::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, .07);
+            border-radius: 3px;
+        }
+
+        /* ── VIDEO GRID ── */
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 7px;
+            padding: 10px;
+        }
+
+        .video-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .video-card:hover {
+            border-color: rgba(124, 109, 250, .5);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .4);
+        }
+
+        .video-thumb {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .video-thumb video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-thumb .play-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, .4);
+            opacity: 0;
+            transition: opacity .2s;
+        }
+
+        .video-card:hover .play-overlay {
+            opacity: 1;
+        }
+
+        .import-flash {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .video-card:active .import-flash {
+            opacity: .92;
+        }
+
+        .video-info {
+            padding: 7px 8px;
+        }
+
+        .video-title {
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .video-meta {
+            font-size: 9px;
+            color: var(--text2);
+            margin-top: 2px;
+        }
+
+        /* ── MUSIC LIST (SFX STYLE) ── */
+        .music-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 7px;
+        }
+
+        .music-card.sfx-style {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 11px;
+            background: #131313;
+            border: 1px solid rgba(255, 255, 255, .04);
+            border-radius: 8px;
+            transition: background .12s, border-color .12s;
+        }
+
+        .music-card.sfx-style:hover {
+            background: #1a1a1a;
+            border-color: rgba(255, 255, 255, .08);
+        }
+
+        .music-play-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, .05);
+            color: var(--text2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s;
+        }
+
+        .music-play-btn:hover {
+            background: rgba(255, 255, 255, .12);
+            color: var(--text);
+            transform: scale(1.05);
+        }
+
+        .music-play-btn.playing {
+            background: rgba(160, 255, 109, .15);
+            color: var(--green);
+        }
+
+        .music-cover-mini {
+            width: 34px;
+            height: 34px;
+            border-radius: 5px;
+            background: #1e1b4b;
+            flex-shrink: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .music-cover-mini img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .music-info-mini {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .music-title-mini {
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text);
+        }
+
+        .music-artist-mini {
+            font-size: 9px;
+            color: var(--text2);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .music-tag-mini {
+            font-size: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0 4px;
+            border-radius: 2px;
+            color: var(--text3);
+        }
+
+        .music-wave-wrap-mini {
+            flex: 1;
+            min-width: 100px;
+            max-width: 320px;
+            display: flex;
+            align-items: center;
+            gap: 1.5px;
+            height: 40px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: opacity 0.2s;
+        }
+
+        .music-dur-mini {
+            font-size: 11px;
+            color: var(--text3);
+            min-width: 70px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .music-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            border-radius: 2px;
+            width: 0%;
+            transition: width .1s linear;
+        }
+
+        audio {
+            display: none;
+        }
+
+        .waveform {
+            display: flex;
+            align-items: center;
+            gap: 1px;
+            height: 16px;
+            margin-top: 5px;
+        }
+
+        .wave-bar {
+            flex-shrink: 0;
+            width: 2px;
+            border-radius: 1px;
+            background: rgba(124, 109, 250, .18);
+            transition: background .1s;
+        }
+
+        /* ── SFX CARD ── */
+        .sfx-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 7px;
+        }
+
+        .sfx-card {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            background: #131313;
+            border: 1px solid rgba(255, 255, 255, .04);
+            border-radius: 8px;
+            padding: 9px 11px;
+            transition: background .12s, border-color .12s;
+        }
+
+        .sfx-card:hover {
+            background: #1a1a1a;
+            border-color: rgba(255, 255, 255, .08);
+        }
+
+        .sfx-play-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: none;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, .05);
+            color: var(--text2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .15s;
+        }
+
+        .sfx-play-btn:hover {
+            background: rgba(255, 255, 255, .12);
+            color: var(--text);
+            transform: scale(1.05);
+        }
+
+        .sfx-play-btn.playing {
+            background: rgba(160, 255, 109, .15);
+            color: var(--green);
+        }
+
+        .sfx-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sfx-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+
+        .sfx-tags {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .sfx-tag {
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, .05);
+            color: var(--text2);
+            border: 1px solid rgba(255, 255, 255, .07);
+        }
+
+        .sfx-wave-wrap {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 1.5px;
+            height: 40px;
+            overflow: hidden;
+            min-width: 100px;
+            max-width: 320px;
+            /* Increased slightly for better clicking */
+            cursor: pointer;
+            padding: 4px 0;
+            transition: opacity 0.2s;
+        }
+
+        .sfx-wave-wrap:hover {
+            opacity: 0.8;
+        }
+
+        .sfx-wave-wrap:hover .sfx-wave-bar {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .sfx-wave-wrap:hover .sfx-wave-bar.played {
+            background: rgba(160, 255, 109, 0.7);
+        }
+
+        .sfx-wave-bar {
+            flex: 1;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, .1);
+            transition: background .08s;
+            min-height: 2px;
+        }
+
+        .sfx-wave-bar.played {
+            background: rgba(160, 255, 109, .45);
+        }
+
+        .sfx-right {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex-shrink: 0;
+        }
+
+        .sfx-dur {
+            font-size: 11px;
+            color: var(--text2);
+            min-width: 70px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .sfx-import-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, .04);
+            color: var(--text2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .15s;
+        }
+
+        .sfx-import-btn:hover {
+            background: rgba(160, 255, 109, .12);
+            color: var(--green);
+        }
+
+        /* SFX load more */
+        .sfx-load-more {
+            margin: 8px auto;
+            padding: 9px 18px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            color: var(--text2);
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all .18s;
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .sfx-load-more:hover {
+            background: rgba(255, 255, 255, .06);
+            color: var(--text);
+        }
+
+        /* ── STATE ── */
+        .state-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 50px 20px;
+            color: var(--text3);
+            text-align: center;
+        }
+
+        .state-icon {
+            margin-bottom: 12px;
+            opacity: .4;
+        }
+
+        .state-box p {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text2);
+        }
+
+        .spinner {
+            width: 26px;
+            height: 26px;
+            border: 2px solid rgba(124, 109, 250, .12);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── BOTTOM BAR ── */
+        .bottom-bar {
+            border-top: 1px solid var(--border);
+            padding: 8px 12px;
+            background: #080808;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .plugin-name {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 10px;
+            color: var(--text2);
+            font-weight: 600;
+            letter-spacing: .3px;
+        }
+
+        .btn-refresh {
+            padding: 4px 10px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            color: var(--text3);
+            font-size: 10px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all .2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-refresh:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-retry {
+            padding: 8px 18px;
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            border-radius: 7px;
+            color: var(--accent);
+            font-size: 11px;
+            font-family: inherit;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: all .2s;
+        }
+
+        .btn-retry:hover {
+            background: rgba(124, 109, 250, .25);
+        }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%) translateY(60px);
+            background: #1c1c1c;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 7px 16px;
+            border-radius: 14px;
+            font-size: 11px;
+            font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+            z-index: 999;
+            pointer-events: none;
+            transition: transform .3s cubic-bezier(.34, 1.56, .64, 1), opacity .3s;
+            opacity: 0;
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-color: rgba(160, 255, 109, .3);
+            color: var(--green);
+        }
+
+        .toast.error {
+            border-color: rgba(255, 107, 138, .3);
+            color: #ff6b8a;
+        }
+
+        /* ── Scrollbars ── */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* ── ClipCafe ── */
+        #clipcafeWrap {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: 100%;
+            animation: clipFadeIn 0.3s ease;
+        }
+
+        #clipcafeYear {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            color: var(--text2);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 0 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            outline: none;
+            transition: all .2s;
+            appearance: none;
+            min-width: 100px;
+            height: 34px;
+            text-align: center;
+        }
+
+        #clipcafeYear:hover {
+            border-color: var(--accent);
+            color: var(--text);
+        }
+
+        @keyframes clipFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+
+        #clipcafeBody {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+            scrollbar-gutter: stable;
+            padding-right: 4px;
+        }
+
+        .clip-movie-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            padding: 10px 0 30px;
+        }
+
+        .clip-movie-card {
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all .25s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .clip-movie-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .clip-movie-poster {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 2/3;
+            overflow: hidden;
+        }
+
+        .clip-movie-poster img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: .9;
+            transition: all .3s ease;
+        }
+
+        .clip-movie-card:hover .clip-movie-poster img {
+            opacity: 1;
+            transform: scale(1.05);
+        }
+
+        .clip-movie-year {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, .75);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            backdrop-filter: blur(4px);
+            z-index: 2;
+        }
+
+        .clip-movie-info {
+            padding: 12px;
+        }
+
+        .clip-movie-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 5px;
+            line-height: 1.4;
+            height: 2.8em;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-clamp: 2;
+        }
+
+        .clip-movie-count {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .clip-movie-btn {
+            width: 100%;
+            padding: 9px;
+            background: rgba(110, 86, 207, .1);
+            border: 1px solid rgba(110, 86, 207, .2);
+            border-radius: 8px;
+            color: var(--accent);
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all .2s ease;
+        }
+
+        .clip-movie-btn:hover {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        /* V2 Detail View - Modern Layout */
+        .detail-mode {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clip-top-nav {
+            padding: 8px 10px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .clip-back-btn-v2 {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 6px;
+            color: var(--text2);
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .clip-back-btn-v2:hover {
+            background: var(--bg-hover);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .clip-detail-header-v2 {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 5px 10px 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .clip-poster-container {
+            width: 50px;
+            height: 70px;
+            flex-shrink: 0;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .clip-detail-poster-v2 {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .clip-header-info {
+            flex: 1;
+        }
+
+        .clip-detail-title-v2 {
+            font-size: 13px;
+            font-weight: 800;
+            color: white;
+            line-height: 1.2;
+            margin-bottom: 3px;
+        }
+
+        .clip-detail-meta-v2 {
+            font-size: 10px;
+            color: var(--text3);
+        }
+
+        .clip-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+            padding: 10px 8px;
+        }
+
+        .clip-scene-card {
+            background: #141414;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .clip-scene-card:hover {
+            border-color: var(--accent);
+        }
+
+        .clip-scene-thumb {
+            width: 100%;
+            height: 80px;
+            background: #000;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .clip-scene-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .clip-scene-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .clip-scene-card:hover .clip-scene-overlay {
+            opacity: 1;
+        }
+
+        .clip-scene-title {
+            font-size: 10px;
+            color: var(--text2);
+            padding: 6px 8px;
+            flex: 1;
+            line-height: 1.3;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            display: -webkit-box;
+            overflow: hidden;
+        }
+
+        .clip-scene-import {
+            margin: 0 6px 6px;
+            padding: 6px;
+            background: rgba(160, 255, 109, 0.08);
+            border: 1px solid rgba(160, 255, 109, 0.15);
+            border-radius: 5px;
+            color: var(--green);
+            font-size: 9px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .clip-scene-import:hover:not(:disabled) {
+            background: var(--green);
+            color: black;
+        }
+
+        /* Spinner Small - No Emoji */
+        .spinner-small {
+            width: 10px;
+            height: 10px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        .load-more-container {
+            padding: 10px 10px 40px;
+            display: flex;
+            justify-content: center;
+            min-height: 60px;
+        }
+
+        .clip-load-more-btn {
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: var(--text2);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .clip-load-more-btn:hover {
+            border-color: var(--accent);
+            color: white;
+            background: rgba(124, 109, 250, 0.1);
+        }
+
+        .spin-icon {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── LOGIN MODAL ── */
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s;
+        }
+
+        .auth-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 30px 20px;
+            width: 85%;
+            max-width: 320px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            text-align: center;
+        }
+
+        .auth-logo {
+            margin-bottom: 5px;
+            color: var(--accent);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .auth-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: left;
+        }
+
+        .auth-input-group label {
+            font-size: 10px;
+            color: var(--text2);
+            font-weight: 600;
+            margin-left: 2px;
+        }
+
+        .auth-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .auth-input:focus {
+            border-color: var(--accent);
+        }
+
+        .auth-btn {
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 5px;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .auth-btn:hover {
+            opacity: 0.9;
+        }
+
+        .auth-btn:active {
+            transform: scale(0.98);
+        }
+
+        .auth-error {
+            color: #ff6b8a;
+            font-size: 10px;
+            margin-top: -5px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- LOGIN OVERLAY -->
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-card">
+            <div class="auth-logo">
+                EditLab Pro
+            </div>
+            <p style="font-size: 11px; color: var(--text3); margin-bottom: 5px;">Acesso Exclusivo</p>
+
+            <div class="auth-input-group">
+                <label>E-MAIL</label>
+                <input type="email" id="authEmail" class="auth-input" placeholder="seu@email.com">
+            </div>
+            <div class="auth-input-group">
+                <label>SENHA</label>
+                <input type="password" id="authPassword" class="auth-input" placeholder="Sua senha secreta">
+            </div>
+
+            <div id="authErrorMsg" class="auth-error">Email ou senha inválidos.</div>
+
+            <button id="authLoginBtn" class="auth-btn">Entrar</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP SCREEN -->
+    <div id="appScreen" style="display: none;">
+
+        <!-- TOP TABS -->
+        <div class="tab-bar">
+            <div class="tab active" data-tab="videos">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                    <line x1="7" y1="2" x2="7" y2="22"></line>
+                    <line x1="17" y1="2" x2="17" y2="22"></line>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <line x1="2" y1="7" x2="7" y2="7"></line>
+                    <line x1="2" y1="17" x2="7" y2="17"></line>
+                    <line x1="17" y1="17" x2="22" y2="17"></line>
+                    <line x1="17" y1="7" x2="22" y2="7"></line>
+                </svg>
+                FILMES - CORTES <span class="tab-count" id="videoTabCount">0</span>
+            </div>
+            <div class="tab" data-tab="music">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18V5l12-2v13"></path>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+                MÚSICAS <span class="tab-count" id="musicTabCount">0</span>
+            </div>
+            <div class="tab" data-tab="sfx">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                </svg>
+                SFX <span class="tab-count" id="sfxTabCount">0</span>
+            </div>
+        </div>
+
+        <!-- SEARCH -->
+        <div class="search-bar">
+            <div class="search-wrap">
+                <span class="search-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </span>
+                <input class="search-input" id="searchInput" placeholder="Buscar..." type="text">
+            </div>
+            <select id="clipcafeYear" style="display: none;"></select>
+        </div>
+
+        <!-- SFX MAIN CATEGORY TABS -->
+        <div id="sfxMainCats">
+            <div class="sfx-cat-row" id="sfxMainCatRow"></div>
+        </div>
+
+        <!-- MUSIC MAIN CATEGORY TABS -->
+        <div id="musicMainCats" style="display:none;">
+            <div class="sfx-cat-row" id="musicMainCatRow"></div>
+        </div>
+
+
+        <!-- FILTER PILLS (shared by SFX & Music) -->
+        <div class="filter-row" id="filterRow">
+            <div class="filter-pill active" data-filter="all">Todos</div>
+        </div>
+
+        <!-- SFX COUNT -->
+        <div id="sfxCountBar" style="display:none;">
+            <div class="sfx-count-text"># <span id="sfxCountNum">0</span> assets encontrados</div>
+        </div>
+
+        <!-- MUSIC COUNT -->
+        <div id="musicCountBar" style="display:none;">
+            <div class="sfx-count-text"># <span id="musicCountNum">0</span> músicas encontradas</div>
+        </div>
+
+        <!-- CONTENT -->
+        <div class="content-area" id="contentArea">
+            <div id="videosContent" class="tab-pane" style="display: block;">
+                <!-- Initial empty state -->
+                <div class="state-box">
+                    <div class="spinner"></div>
+                    <p>Carregando filmes...</p>
+                </div>
+            </div>
+            <div id="musicContent" class="tab-pane" style="display: none;">
+                <div class="state-box">
+                    <div class="spinner"></div>
+                    <p>Carregando músicas...</p>
+                </div>
+            </div>
+            <div id="sfxContent" class="tab-pane" style="display: none;">
+                <div class="sfx-list" id="sfxGrid"></div>
+            </div>
+
+        </div>
+
+        <!-- BOTTOM BAR -->
+        <div class="bottom-bar">
+            <div class="plugin-name">
+                EditLab Pro
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn-refresh" id="logoutBtn"
+                    style="color: #ff6b8a; border-color: rgba(255, 107, 138, 0.3);">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Sair
+                </button>
+                <button class="btn-refresh" id="refreshBtn">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                    Atualizar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="js/CSInterface.js"></script>
+    <script src="js/main.js?v=4.0"></script>
+</body>
+
+</html>

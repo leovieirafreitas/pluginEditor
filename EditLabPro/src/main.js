@@ -1,6 +1,6 @@
 const { invoke } = window.__TAURI__.core;
 
-let davinciStatus, activateDavinciBtn, premiereStatus, activatePremiereBtn;
+let davinciStatus, activateDavinciBtn, premiereStatus, activatePremiereBtn, aftereffectsStatus, activateAfterEffectsBtn;
 
 function showToast(message, type = "success") {
   const toast = document.createElement("div");
@@ -20,7 +20,6 @@ function showToast(message, type = "success") {
 
   document.body.appendChild(toast);
 
-  // Animação de entrada
   requestAnimationFrame(() => {
     toast.style.transform = "translateY(0)";
   });
@@ -34,7 +33,7 @@ function showToast(message, type = "success") {
 
 async function refreshStatus() {
   try {
-    const [isDavinciInstalled, isPremiereInstalled] = await invoke("check_status");
+    const [isDavinciInstalled, isPremiereInstalled, isAfterEffectsInstalled] = await invoke("check_status");
 
     // UI DaVinci
     if (isDavinciInstalled) {
@@ -57,6 +56,17 @@ async function refreshStatus() {
       activatePremiereBtn.textContent = "Ativar Integração";
       activatePremiereBtn.className = "btn-activate";
     }
+
+    // UI After Effects
+    if (isAfterEffectsInstalled) {
+      aftereffectsStatus.textContent = "Status: Ativado";
+      activateAfterEffectsBtn.textContent = "Desativar";
+      activateAfterEffectsBtn.className = "btn-deactivate";
+    } else {
+      aftereffectsStatus.textContent = "Status: Pronto para Ativar";
+      activateAfterEffectsBtn.textContent = "Ativar Integração";
+      activateAfterEffectsBtn.className = "btn-activate";
+    }
   } catch (err) {
     console.error("Erro ao checar status:", err);
   }
@@ -67,13 +77,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   activateDavinciBtn = document.querySelector("#activate-davinci");
   premiereStatus = document.querySelector("#premiere-status");
   activatePremiereBtn = document.querySelector("#activate-premiere");
+  aftereffectsStatus = document.querySelector("#aftereffects-status");
+  activateAfterEffectsBtn = document.querySelector("#activate-aftereffects");
 
   activateDavinciBtn.addEventListener("click", async () => {
     const isInstalled = activateDavinciBtn.classList.contains("btn-deactivate");
     const cmd = isInstalled ? "deactivate_davinci" : "activate_davinci";
-
     davinciStatus.textContent = isInstalled ? "Desativando..." : "Ativando...";
-
     try {
       const result = await invoke(cmd);
       showToast(result);
@@ -87,9 +97,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   activatePremiereBtn.addEventListener("click", async () => {
     const isInstalled = activatePremiereBtn.classList.contains("btn-deactivate");
     const cmd = isInstalled ? "deactivate_premiere" : "activate_premiere";
-
     premiereStatus.textContent = isInstalled ? "Desativando..." : "Ativando...";
-
     try {
       const result = await invoke(cmd);
       showToast(result);
@@ -100,6 +108,19 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // Inicializa o status na abertura
+  activateAfterEffectsBtn.addEventListener("click", async () => {
+    const isInstalled = activateAfterEffectsBtn.classList.contains("btn-deactivate");
+    const cmd = isInstalled ? "deactivate_aftereffects" : "activate_aftereffects";
+    aftereffectsStatus.textContent = isInstalled ? "Desativando..." : "Ativando...";
+    try {
+      const result = await invoke(cmd);
+      showToast(result);
+      await refreshStatus();
+    } catch (err) {
+      showToast("Erro: " + err, "error");
+      await refreshStatus();
+    }
+  });
+
   await refreshStatus();
 });
