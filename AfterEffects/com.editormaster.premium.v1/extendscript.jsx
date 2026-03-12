@@ -249,28 +249,32 @@ function importAEPToTimeline(encodedPath, encodedText, fontSize, colorHex) {
         }
 
         // 3) Insere na Timeline (Agulha) da composition logada
+        // Duplica a comp para a raiz do projeto (opcional, ajuda a organizar)
+        targetComp.parentFolder = app.project.rootFolder;
+        
         var newLayer = activeComp.layers.add(targetComp);
         newLayer.startTime = activeComp.time;
 
+        // Limpa a pasta importada que sobrou vazia (ou os assets não usados)
+        try { importedProjectFolder.remove(); } catch(e){}
+
         // 4) Edita TODOS os TextLayers originais dentro da comp importada
         var textsFound = 0;
+        var multiTexts = legendText.split('|||');
+        
         for (var li = 1; li <= targetComp.numLayers; li++) {
             var lyr = targetComp.layers[li];
             if (lyr instanceof TextLayer) {
                 try {
                     var tfProp = lyr.property('ADBE Text Properties').property('ADBE Text Document');
                     var td = tfProp.value;
-                    var multiTexts = legendText.split('|||');
-                    td.text = (textsFound < multiTexts.length) ? multiTexts[textsFound] : multiTexts[multiTexts.length - 1];
-                    if (fontSize && fontSize > 0) td.fontSize = fontSize;
-
-                    if (colorHex && colorHex.length >= 6) {
-                        var r = parseInt(colorHex.substring(0, 2), 16) / 255;
-                        var g = parseInt(colorHex.substring(2, 4), 16) / 255;
-                        var b = parseInt(colorHex.substring(4, 6), 16) / 255;
-                        td.fillColor = [r, g, b];
+                    var newText = (textsFound < multiTexts.length) ? multiTexts[textsFound] : "";
+                    
+                    if (newText && newText !== "") {
+                        // Substitui a string; o After Effects manterá o estilo original do primeiro caractere.
+                        td.text = newText;
+                        tfProp.setValue(td);
                     }
-                    tfProp.setValue(td);
                     textsFound++;
                 } catch (eTr) {}
             }
@@ -320,7 +324,9 @@ function getAEPTextLayersCount(encodedPath) {
         var count = 0;
         if (comp) {
             for (var j = 1; j <= comp.numLayers; j++) {
-                if (comp.layers[j] instanceof TextLayer) count++;
+                if (comp.layers[j] instanceof TextLayer) {
+                    count++;
+                }
             }
         }
 
