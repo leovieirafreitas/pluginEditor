@@ -1829,18 +1829,77 @@ function generateFakePeaks(seed) {
 // Cada template aponta para um arquivo .mogrt dentro da pasta Legendas
 const TEMPLATES_AEP = [
     {
-        id: 'edittext01',
-        name: 'EditText 01',
+        id: 'text01',
+        name: 'Text 01',
         category: 'Captions',
-        filename: 'textoteste01.aep',
-        folder: 'templates',
-        previewText: 'I just\\nKnow\\nBoy',
-        previewBg: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
+        filename: 'Text-01.aep',
+        folder: 'Captions_01',
+        previewText: 'Aguardando\\ndestino',
+        previewBg: '#1e1e1e',
         badge: 'TEMPLATE',
         textColor: '#ffffff',
-        inputs: ['Know', 'I just', 'Boy']
+        inputs: []
+    },
+    {
+        id: 'text02',
+        name: 'Text 02',
+        category: 'Captions',
+        filename: 'Text-02.aep',
+        folder: 'Captions_01',
+        previewText: 'Aguardando\\ndestino',
+        previewBg: '#1e1e1e',
+        badge: 'TEMPLATE',
+        textColor: '#ffffff',
+        inputs: []
+    },
+    {
+        id: 'text03',
+        name: 'Text 03',
+        category: 'Captions',
+        filename: 'Text-03.aep',
+        folder: 'Captions_01',
+        previewText: 'Aguardando\\ndestino',
+        previewBg: '#1e1e1e',
+        badge: 'TEMPLATE',
+        textColor: '#ffffff',
+        inputs: []
+    },
+    {
+        id: 'text04',
+        name: 'Text 04',
+        category: 'Captions',
+        filename: 'Text-04.aep',
+        folder: 'Captions_01',
+        previewText: 'Aguardando\\ndestino',
+        previewBg: '#1e1e1e',
+        badge: 'TEMPLATE',
+        textColor: '#ffffff',
+        inputs: []
+    },
+    {
+        id: 'text05',
+        name: 'Text 05',
+        category: 'Captions',
+        filename: 'Text-05.aep',
+        folder: 'Captions_01',
+        previewText: 'Aguardando\\ndestino',
+        previewBg: '#1e1e1e',
+        badge: 'TEMPLATE',
+        textColor: '#ffffff',
+        inputs: []
+    },
+    {
+        id: 'text06',
+        name: 'Text 06',
+        category: 'Captions',
+        filename: 'Text-06.aep',
+        folder: 'Captions_01',
+        previewText: 'Aguardando\\ndestino',
+        previewBg: '#1e1e1e',
+        badge: 'TEMPLATE',
+        textColor: '#ffffff',
+        inputs: []
     }
-    // Adicione mais templates aqui conforme necessário
 ];
 
 let legendasInitialized = false;
@@ -1913,32 +1972,61 @@ function selectMogrtTemplate(template) {
     const bar = document.getElementById('mogrtSelectedBar');
     const namePill = document.getElementById('mogrtSelectedName');
     if (bar) bar.classList.add('visible');
-    if (namePill) namePill.textContent = template.name + '  —  ' + template.filename;
+    const displayName = template.name.replace(/\.aep$/i, '');
+    if (namePill) namePill.textContent = displayName;
 
     // Atualiza nome do editor
     const editorName = document.getElementById('legendEditorTemplateName');
-    if (editorName) editorName.textContent = template.name;
+    if (editorName) editorName.textContent = displayName;
 
     // Atualiza preview do texto (Inputs múltiplos)
     const container = document.getElementById('legendInputsContainer');
     if (container) {
-        container.innerHTML = '';
-        if (template.inputs && template.inputs.length > 0) {
-            template.inputs.forEach((inpVal, idx) => {
-                const ta = document.createElement('textarea');
-                ta.className = 'legend-text-input';
-                ta.style.minHeight = '40px';
-                ta.style.padding = '10px';
-                ta.id = 'legendTextInput_' + idx;
-                ta.placeholder = 'Texto ' + (idx + 1) + '...';
-                ta.rows = "1";
-                ta.value = inpVal;
-                container.appendChild(ta);
-            });
+        container.innerHTML = '<div class="spinner-small" style="margin:10px auto"></div> Reconhecendo campos...';
+
+        // Pega path absoluto do plugin
+        let extRoot = '';
+        try {
+            const sp = (typeof SystemPath !== 'undefined' && SystemPath.EXTENSION) ? SystemPath.EXTENSION : 'extension';
+            extRoot = csInterface.getSystemPath(sp) || '';
+        } catch (e) { }
+
+        if (!extRoot) {
+            try {
+                const href = window.location.href.replace(/\\/g, '/');
+                const m = href.match(/file:\/\/\/?(.+)\/[^\/]+\.html/i);
+                if (m) extRoot = decodeURIComponent(m[1]);
+            } catch (e2) { }
         }
+        
+        extRoot = extRoot.replace(/\//g, '\\').replace(/^\\([A-Za-z]:)/, '$1').replace(/\\$/, '');
+        const aepPath = extRoot + '\\Legendas\\' + template.folder + '\\' + template.filename;
+        const encodedPath = encodeURIComponent(aepPath);
+
+        // Chama ExtendScript para contar camadas de texto
+        csInterface.evalScript('getAEPTextLayersCount("' + encodedPath + '")', function(result) {
+            container.innerHTML = '';
+            if (result && !result.startsWith('ERROR:')) {
+                const count = parseInt(result) || 1;
+                for (let i = 0; i < count; i++) {
+                    const ta = document.createElement('textarea');
+                    ta.className = 'legend-text-input';
+                    ta.style.minHeight = '40px';
+                    ta.style.padding = '10px';
+                    ta.id = 'legendTextInput_' + i;
+                    ta.placeholder = 'Texto ' + (i + 1) + '...';
+                    ta.rows = "1";
+                    ta.value = '';
+                    container.appendChild(ta);
+                }
+                if (container.firstChild) container.firstChild.focus();
+            } else {
+                container.innerHTML = '<div style="font-size:10px;color:#ff6b8a;padding:5px;">Erro ao ler campos: ' + result + '</div>';
+            }
+        });
     }
 
-    showToast('Template "' + template.name + '" selecionado', 'success');
+    showToast('Template "' + displayName + '" selecionado', 'success');
 }
 
 function setupLegendasEvents() {
@@ -2041,8 +2129,8 @@ function applyMogrtToTimeline() {
     // Normaliza PATH para Windows
     extRoot = extRoot.replace(/\//g, '\\').replace(/^\\([A-Za-z]:)/, '$1').replace(/\\$/, '');
     
-    // Caminho da pasta templates onde está o textoteste01.aep
-    const aepFullPath = extRoot + '\\Legendas\\templates\\textoteste01.aep';
+    // Caminho dinâmico baseado no template
+    const aepFullPath = extRoot + '\\Legendas\\' + selectedMogrt.folder + '\\' + selectedMogrt.filename;
 
     // Envia usando encodeURIComponent para evitar problemas com caracteres exóticos (ExtendScript decodifica)
     const encodedPath = encodeURIComponent(aepFullPath);

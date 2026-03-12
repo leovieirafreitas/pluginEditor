@@ -285,3 +285,50 @@ function importAEPToTimeline(encodedPath, encodedText, fontSize, colorHex) {
         return 'ERROR: ' + e.toString();
     }
 }
+
+/**
+ * ============================================================
+ * GET AEP TEXT LAYERS COUNT
+ * Abre o AEP temporariamente para contar as camadas de texto.
+ * ============================================================
+ */
+function getAEPTextLayersCount(encodedPath) {
+    try {
+        var aepFullPath = decodeURIComponent(encodedPath);
+        var aepFile = new File(aepFullPath);
+        if (!aepFile.exists) return "ERROR: Arquivo não encontrado";
+
+        // Importa como pasta
+        var io = new ImportOptions(aepFile);
+        var importedFolder = app.project.importFile(io);
+        if (!importedFolder) return "0";
+
+        // Acha a comp
+        function findComp(folder) {
+            for (var i = 1; i <= folder.numItems; i++) {
+                var item = folder.item(i);
+                if (item instanceof CompItem) return item;
+                if (item instanceof FolderItem) {
+                    var f = findComp(item);
+                    if (f) return f;
+                }
+            }
+            return null;
+        }
+
+        var comp = findComp(importedFolder);
+        var count = 0;
+        if (comp) {
+            for (var j = 1; j <= comp.numLayers; j++) {
+                if (comp.layers[j] instanceof TextLayer) count++;
+            }
+        }
+
+        // Remove do projeto para não sujar
+        importedFolder.remove();
+
+        return count.toString();
+    } catch (e) {
+        return "ERROR: " + e.toString();
+    }
+}
